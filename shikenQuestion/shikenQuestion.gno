@@ -1,5 +1,7 @@
 package shikenquestion
 
+import "std"
+
 // The Question structure must be not editable except for the kind entry.
 // This is in order to protect the candidates that answer this question.
 // Because this way the examinator can't edit the question after
@@ -7,7 +9,7 @@ package shikenquestion
 
 type Question struct {
 	answer     string   // this is the correct index of the answer above
-	author     string   // address which created the Question. Not editable
+	author     std.Address   // address which created the Question. Not editable
 	categories []string // category in the exam this question belongs
 	id         uint     // identifier of this question. Not editable
 	kind       uint     // type of questions as in multiple choice, true/false or open (0,1,2)
@@ -52,7 +54,7 @@ func NewQuestion(kind uint, question string, options []string, answer string, ca
 
 	increaseId()
 	return &Question{
-		author:     "author",
+		author:     std.GetOrigCaller(),
 		id:         id,
 		kind:       kind,
 		answer:     answer,
