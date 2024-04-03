@@ -1,6 +1,11 @@
 package shikenrepository
 
-import "shikenQuestion"
+import (
+	avl 		"gno.land/p/demo/avl"
+	question 	"gno.land/p/dev/shikenquestion"
+	exam 		"gno.land/p/dev/shikenexam"
+	std			"std"
+)
 
 // The Question structure must be not editable except for the kind entry.
 // This is in order to protect the candidates that answer this question.
@@ -9,6 +14,6 @@ import "shikenQuestion"
 
 type Repository struct {
 	author    string
-	questions []shikenQuestion.Question
-	exams     []shikenExam.Exam
+	questions avl.Tree
+	exams     avl.Tree
 }
