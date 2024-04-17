@@ -11,7 +11,7 @@ type Question struct {
 	answer     string   // this is the correct index of the answer above
 	author     std.Address   // address which created the Question. Not editable
 	categories []string // category in the exam this question belongs
-	id         uint     // identifier of this question. Not editable
+	id         int     // identifier of this question. Not editable
 	kind       uint     // type of questions as in multiple choice, true/false or open (0,1,2)
 	options    []string // the encrypted answer(s), if question is multiple choice this will contain multiple options
 	question   string   // the question.
@@ -31,11 +31,8 @@ const ErrAnswerNotInOption = "answer not in options"
 const ErrOpenQuestionOptions = "open question don't require options"
 const ErrOpenQuestionAnswer = "open question don't require answer"
 
-// Questions ids
-var id = uint(0)
-
 // Creates a new question
-func NewQuestion(kind uint, question string, options []string, answer string, categories []string) *Question {
+func NewQuestion(question string, kind uint, id int, options []string, answer string, categories []string) *Question {
 	// If the question is True-False the options are set to these options
 	if len(question) < 5 {
 		panic(ErrQuestionTooShort)
@@ -52,7 +49,6 @@ func NewQuestion(kind uint, question string, options []string, answer string, ca
 		panic(ErrKindOutOfRange)
 	}
 
-	increaseId()
 	return &Question{
 		author:     std.GetOrigCaller(),
 		id:         id,
@@ -117,10 +113,6 @@ func verifyOpenEndedQuestion(options []string, answer string) {
 	if len(answer) != 0 {
 		panic(ErrOpenQuestionAnswer)
 	}
-}
-
-func increaseId() {
-	id++
 }
 
 func (s *Question) RemoveOption(option string) {
