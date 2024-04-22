@@ -2,19 +2,21 @@ package shikenquestion
 
 import "std"
 
-// The Question structure must be not editable except for the kind entry.
+// The Question structure must be not editable except if hasn't been used.
 // This is in order to protect the candidates that answer this question.
-// Because this way the examinator can't edit the question after
-// has been used in an exam.
+// This way the examinator can't edit the question after has been used in an exam.
 
 type Question struct {
-	answer     string   // this is the correct index of the answer above
-	author     std.Address   // address which created the Question. Not editable
-	categories []string // category in the exam this question belongs
-	id         int     // identifier of this question. Not editable
-	kind       uint     // type of questions as in multiple choice, true/false or open (0,1,2)
-	options    []string // the encrypted answer(s), if question is multiple choice this will contain multiple options
-	question   string   // the question.
+	answer		string   	 	// Answer. It must be contained in the options.
+	author		std.Address  	// address which created the Question. Not editable.
+	categories 	[]string 		// category in the exam this question belongs
+	id       	int				// identifier of this question. Not editable
+	kind		uint     		// type of questions as in multiple choice, true/false or open (0,1,2). Not editable.
+	options		[]string 		// The encrypted answer(s), if question is multiple choice this will contain multiple options.
+	question	string   		// The statement of the question.
+	public		bool 			// The question is public or not.
+	hash		string			// To make the question encrypted.
+	canRead		bool			// Allows the exam container to read the full information.
 }
 
 // Panics for generic cases
