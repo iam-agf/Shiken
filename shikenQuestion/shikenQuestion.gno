@@ -141,6 +141,8 @@ func (s *Question) IsCorrect(answer string) bool {
 	return answer == s.GetAnswer()
 }
 
+// Set functions
+
 func (s *Question) SetQuestion(question string) {
 	if len(question) < 5 {
 		panic("the length of the question is very short")
@@ -153,25 +155,33 @@ func (s *Question) SetCategories(categories []string) {
 	s.categories = categories
 }
 
-func (s *Question) GetOptions() []string {
-	return s.options
-}
-
 func (s *Question) SetOptions(options []string) {
 	s.options = options
 }
 
+// Get functions
+
+//Get options of question
+func (s *Question) GetOptions() []string {
+	return s.options
+}
+
+//Get answer of question
 func (s *Question) GetAnswer() string {
 	return s.answer
 }
 
+//Get categories of question
 func (s *Question) GetCategories() []string {
 	return s.categories
 }
 
+//Get statement of question
 func (s *Question) GetQuestion() string {
 	return s.question
 }
+
+//Get kind of question
 func (s *Question) GetKind() uint {
 	return s.kind
 }

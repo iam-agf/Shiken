@@ -18,14 +18,14 @@ type Exam struct {
 	ponderation       avl.Tree            // Scoring for the questions.
 	applicants        avl.Tree            // List of users that can apply to this Exam
 	answersApplicants avl.Tree            // Answers from the Applicants
-	record            []string            // Scoring for the exam
 	startTime		  time.Time           // Time the exam should start
 	endTime		  	  time.Time           // Time the exam should end
 }
 
-func NewExam(title string, description string, questions string, id int) Exam {
-	questionStrings := strings.Split(questions, ",")
+func NewExam(title string, description string, questions string, applicants []string, id int) *Exam {
 	var questionIds []int
+	var applicantsTree avl.Tree
+	questionStrings := strings.Split(questions, ",")
 	for _, q := range questionStrings{
 		qId, err := strconv.Atoi(q)
 		if err != nil {
@@ -33,12 +33,17 @@ func NewExam(title string, description string, questions string, id int) Exam {
 		}
 		questionIds = append(questionIds, qId)
 	}
-	return Exam{
+	for _, appl := range applicants{
+		applicantsTree.Set(appl, true)
+	}
+
+	return &Exam{
 		creator: std.GetOrigCaller(),
 		id: id,
 		title: title,
 		description: description,
 		questions: questionIds,
+		applicants: applicantsTree,
 	}
 }
 
@@ -77,9 +82,14 @@ func (e *Exam) VerifyApplicant(applicant std.Address) bool {
 }
  */
 
- // Get the exam's title
+// Get the exam's title
 func (e *Exam) GetTitle() string {
 	return e.title
+}
+
+// Get the exam's questions
+func (e *Exam) GetQuestions() []int {
+	return e.questions
 }
 
 // Get the exam's description
@@ -88,15 +98,15 @@ func (e *Exam) GetDescription() string {
 }
 
 // Returns the scores of the applicants in the exam
-func (e *Exam) GetRecord() []string {
-	return e.record
+func (e *Exam) GetRecord() avl.Tree {
+	return e.answersApplicants
 }
 
 // Returns the list of addresses allowed to apply to this Exam
 func (e *Exam) GetApplicants() []string {
 	var applicants []string
-	/* e.applicants.Iterate("","", func(key string, value interface{}) bool {
+	e.applicants.Iterate("","", func(key string, value interface{}) bool {
 		applicants = append(applicants, key)
-	}) */
+	})
 	return applicants
 }

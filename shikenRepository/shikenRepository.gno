@@ -10,22 +10,17 @@ import (
 	std				"std"
 )
 
-// Error outputs
-const ErrNoExistingId = "Id requested doesn't exist"
+const ErrNoExistingExam = "No exam with given Id"
 
-// The Question structure must be not editable except for the kind entry.
-// This is in order to protect the candidates that answer this question.
-// Because this way the examinator can't edit the question after
-// has been used in an exam.
 
 type Repository struct {
-	Exams avl.Tree			// List of Exams
-	Questions avl.Tree		// List of Questions
-	AppliedExams avl.Tree	// Exams already expired (useful to delete questions)
-	Pubkey string			// Public key to encrypt all content of this Repository
-	privkey string			// Private Key (previously encrypted by user password via off-chain)
-	idQuestion int			// Id of the next Question
-	idExam int				// Id of next Exam
+	Exams avl.Tree				// List of Exams
+	Questions avl.Tree			// List of Questions
+	QuestionsUsedBy avl.Tree	// key -> list of questions using the question with id 'key'
+	Pubkey string				// Public key to encrypt all content of this Repository
+	privkey string				// Private Key (previously encrypted by user password via off-chain)
+	idQuestion int				// Id of the next Question
+	idExam int					// Id of next Exam
 }
 
 func (r *Repository) AddQuestion(statement string, kind uint, options string, categories string, answer string) {
@@ -36,10 +31,10 @@ func (r *Repository) AddQuestion(statement string, kind uint, options string, ca
 	r.Questions.Set(strconv.Itoa(r.GetIdQuestion()), q)
 }
 
-func (r *Repository) AddExam(title string, questions string, description string) {
+func (r *Repository) AddExam(title string, questions string, description string, applicants []string) {
 	r.IncreaseIdExam()
 	idExam := r.GetIdExam()
-	e := shikenexam.NewExam(title, description, questions, idExam)
+	e := shikenexam.NewExam(title, description, questions, applicants, idExam)
 	r.Exams.Set(strconv.Itoa(idExam),e)
 }
 
@@ -51,30 +46,55 @@ func separateContent(words string) []string {
 	return separatedWords
 }
 
+func (r *Repository) GetExamsUsingQuestionsByQuestionId() avl.Tree {
+	return r.QuestionsUsedBy
+}
+
+// Checks if a question has been used in an exam
+// so it can be deleted or not
+func (r *Repository) CanDeleteQuestion(id string) bool {
+	exams := r.GetExamsUsingQuestionsByQuestionId()
+	used, dontExist := exams.Get(id)
+	if !dontExist {
+		return true 
+	} else {
+		return false
+	}
+	return true
+}
 
 // Functions for Ids (Questions & Exams)
+
+// Increases by 1 the Id for the next question
 func (r *Repository) IncreaseIdQuestion(){
 	r.idQuestion++
 }
 
+// Increases by 1 the Id for the next exam
 func (r *Repository) IncreaseIdExam(){
 	r.idExam++
 }
 
+// Gets the last Id used to register a question
 func (r *Repository) GetIdQuestion() int {
 	return r.idQuestion
 }
 
+// Gets the last Id used to register an exam
 func (r *Repository) GetIdExam() int {
 	return r.idExam
 }
 
+// Read Functions
 
+// Gets the information from a Question and returns
+// a string containing the information related to it
+// to print it wherever is needed
 func (r *Repository) ReadQuestion(id string) string {
 	qt, ok := r.Questions.Get(id)
 	if !ok {
-		panic(ErrNoExistingId)
-	} else{
+		""
+	} else {
 		q := qt.(*shikenquestion.Question)
 		var output string
 		if q.GetKind() != uint(2) {
@@ -86,23 +106,38 @@ func (r *Repository) ReadQuestion(id string) string {
 	4) %s
 	`, q.GetQuestion(), o[0], o[1], o[2], o[3])
 		} else {
-			output = "## "+ q.GetQuestion() + "\n (open ended) \n"
+			output = "## "+ q.GetQuestion() + "\n (open question) \n"
 		}
 		return output + "\n"
 	}
 	return ""
 }
 
+// Gets the information from an Exam and returns
+// a string containing the information related to it
+// to print it wherever is needed
 func (r *Repository) ReadExam(id string) string {
 	ex, ok := r.Exams.Get(id)
 	if !ok {
-		panic(ErrNoExistingId)
+		return ""
 	} else{
 		e := ex.(*shikenexam.Exam)
-		var output string
-		output = ufmt.Sprintf(`%s
-		%s`,e.GetTitle(), e.GetDescription())
+		output := ufmt.Sprintf("## %s \n %s \n ",e.GetTitle(), e.GetDescription())
 		return output
 	}
 	return ""
+}
+
+// Get functions
+
+func (r *Repository) GetQuestions() avl.Tree {
+	return r.Questions
+}
+
+func (r *Repository) GetExamById(id string) *shikenexam.Exam {
+	e, ok := r.Exams.Get(id)
+	if !ok {
+		panic(ErrNoExistingExam)
+	}
+	return e.(*shikenexam.Exam)
 }
