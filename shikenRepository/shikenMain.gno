@@ -75,6 +75,24 @@ func AddExam(title string, questions string, description string, applicantsStrin
 	}
 }
 
+// Duplicates an exam based on a previous one
+func DuplicateExam(oe string) {
+	newExam := shikenexam.Exam{}
+	oldExam := MainRepository.GetExamById(oe)
+	title := oldExam.GetTitle()
+	description := oldExam.GetDescription()
+	categories := oldExam.GetCategories()
+	questions := oldExam.GetQuestions()
+	ponderation := oldExam.GetPonderation()
+	applicants := oldExam.GetApplicantsTree()
+	newExam.UpdateTitle(title)
+	newExam.UpdateDescription(description)
+	newExam.UpdateCategories(categories)
+	newExam.UpdateQuestions(questions)
+	newExam.UpdatePonderation(ponderation)
+	newExam.UpdateApplicants(applicants)
+}
+
 // Read all the exams and returns it as a string. It won't matter if an external
 // reads it because it will be hashed by web2 infrastructure.
 func ReadExams() string {

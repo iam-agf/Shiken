@@ -37,22 +37,6 @@ func NewExam(title string, description string, questions []int, applicants []str
 	}
 }
 
-// Updates the exam's title with the given one
-func (e *Exam) EditTitle(newTitle string){
-	e.title = newTitle
-}
-
-// Updates the exam's description with the given one
-func (e *Exam) EditDescription(newDescription string){
-	e.description = newDescription
-}
-
-// Updates the list of categories
-func (e *Exam) EditCategories(categories []string){
-	e.categories = categories
-}
-
-
 /* // Adds the given address to the allowed applicants
 // to the exam
 func (e *Exam) AddApplicant(applicant std.Address) bool {
@@ -67,31 +51,6 @@ func (e *Exam) VerifyApplicant(applicant std.Address) bool {
 	return e.applicants.Has(applicant.String())
 }
 
-/* func (e *Exam) SetStartTime(){
-	
-}
- */
-
-// Get the exam's title
-func (e *Exam) GetTitle() string {
-	return e.title
-}
-
-// Get the exam's questions
-func (e *Exam) GetQuestions() []int {
-	return e.questions
-}
-
-// Get the exam's description
-func (e *Exam) GetDescription() string {
-	return e.description
-}
-
-// Returns the scores of the applicants in the exam
-func (e *Exam) GetRecord() avl.Tree {
-	return e.answersApplicants
-}
-
 // Returns the list of addresses allowed to apply to this Exam
 func (e *Exam) GetApplicants() []string {
 	var applicants []string
@@ -101,17 +60,62 @@ func (e *Exam) GetApplicants() []string {
 	return applicants
 }
 
-// Returns the avl.Tree of addresses allowed to apply to this Exam
+// Basic Get functions
+
+func (e *Exam) GetTitle() string {
+	return e.title
+}
+func (e *Exam) GetDescription() string {
+	return e.description
+}
+func (e *Exam) GetId() int {
+	return e.id
+}
+func (e *Exam) GetCategories() []string {
+	return e.categories
+}
+func (e *Exam) GetQuestions() []int {
+	return e.questions
+}
+func (e *Exam) GetPonderation() avl.Tree {
+	return e.ponderation
+}
 func (e *Exam) GetApplicantsTree() avl.Tree {
 	return e.applicants
 }
-
-// Returns the startTime of the exam
+func (e *Exam) GetAnswerApplicantsTree() avl.Tree {
+	return e.answersApplicants
+}
 func (e *Exam) GetStartTime() time.Time {
 	return e.startTime
 }
-
-// Returns the endTime of the exam
 func (e *Exam) GetEndTime() time.Time {
 	return e.endTime
+}
+
+// Update functions
+
+func (e *Exam) UpdateTitle(c string) {
+	e.title = c
+}
+func (e *Exam) UpdateDescription(c string) {
+	e.description = c
+}
+func (e *Exam) UpdateCategories(c []string) {
+	e.categories = c
+}
+func (e *Exam) UpdateQuestions(c []int) {
+	e.questions = c
+}
+func (e *Exam) UpdatePonderation(c avl.Tree) {
+	e.ponderation = c
+}
+func (e *Exam) UpdateApplicants(c avl.Tree) {
+	e.applicants = c
+}
+func (e *Exam) UpdateStartTime(c time.Time) {
+	e.startTime = c
+}
+func (e *Exam) UpdateEndTime(c time.Time) {
+	e.endTime = c
 }
