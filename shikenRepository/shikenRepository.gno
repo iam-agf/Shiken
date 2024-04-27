@@ -6,7 +6,7 @@ import (
 	avl 			"gno.land/p/demo/avl"
 	ufmt			"gno.land/p/demo/ufmt"
 	shikenquestion 	"gno.land/p/dev/shikenquestion"
-	shikenexam 			"gno.land/p/dev/shikenexam"
+	shikenexam 		"gno.land/p/dev/shikenexam"
 	std				"std"
 )
 
@@ -16,13 +16,16 @@ const ErrNoExistingExam = "No exam with given Id"
 type Repository struct {
 	Exams avl.Tree				// List of Exams
 	Questions avl.Tree			// List of Questions
-	QuestionsUsedBy avl.Tree	// key -> list of questions using the question with id 'key'
+	QuestionsUsedBy avl.Tree	// key -> list of exams using the question with id 'key'
 	Pubkey string				// Public key to encrypt all content of this Repository
 	privkey string				// Private Key (previously encrypted by user password via off-chain)
 	idQuestion int				// Id of the next Question
 	idExam int					// Id of next Exam
 }
 
+// Add functions
+
+// Add Question to the Repository
 func (r *Repository) AddQuestion(statement string, kind uint, options string, categories string, answer string) {
 	categoriesArray := separateContent(categories)
 	optionsArray := separateContent(options)
@@ -31,6 +34,7 @@ func (r *Repository) AddQuestion(statement string, kind uint, options string, ca
 	r.Questions.Set(strconv.Itoa(r.GetIdQuestion()), q)
 }
 
+// Add Exam to the Repository
 func (r *Repository) AddExam(title string, questions string, description string, applicants []string) {
 	r.IncreaseIdExam()
 	idExam := r.GetIdExam()
@@ -38,6 +42,9 @@ func (r *Repository) AddExam(title string, questions string, description string,
 	r.Exams.Set(strconv.Itoa(idExam),e)
 }
 
+// ## Supporting functions
+
+// Splits the content of a string of words separated by a comma.
 func separateContent(words string) []string {
 	if len(words) == 0 {
 		return []string{}
@@ -46,9 +53,6 @@ func separateContent(words string) []string {
 	return separatedWords
 }
 
-func (r *Repository) GetExamsUsingQuestionsByQuestionId() avl.Tree {
-	return r.QuestionsUsedBy
-}
 
 // Checks if a question has been used in an exam
 // so it can be deleted or not
@@ -63,7 +67,7 @@ func (r *Repository) CanDeleteQuestion(id string) bool {
 	return true
 }
 
-// Functions for Ids (Questions & Exams)
+// ## Increase Functions
 
 // Increases by 1 the Id for the next question
 func (r *Repository) IncreaseIdQuestion(){
@@ -75,17 +79,7 @@ func (r *Repository) IncreaseIdExam(){
 	r.idExam++
 }
 
-// Gets the last Id used to register a question
-func (r *Repository) GetIdQuestion() int {
-	return r.idQuestion
-}
-
-// Gets the last Id used to register an exam
-func (r *Repository) GetIdExam() int {
-	return r.idExam
-}
-
-// Read Functions
+// ## Read Functions
 
 // Gets the information from a Question and returns
 // a string containing the information related to it
@@ -128,7 +122,7 @@ func (r *Repository) ReadExam(id string) string {
 	return ""
 }
 
-// Get functions
+// ## Get functions
 
 func (r *Repository) GetQuestions() avl.Tree {
 	return r.Questions
@@ -140,4 +134,19 @@ func (r *Repository) GetExamById(id string) *shikenexam.Exam {
 		panic(ErrNoExistingExam)
 	}
 	return e.(*shikenexam.Exam)
+}
+
+// Gets the last Id used to register a question
+func (r *Repository) GetIdQuestion() int {
+	return r.idQuestion
+}
+
+// Gets the last Id used to register an exam
+func (r *Repository) GetIdExam() int {
+	return r.idExam
+}
+
+// Get the Questions that are used by an exam
+func (r *Repository) GetExamsUsingQuestionsByQuestionId() avl.Tree {
+	return r.QuestionsUsedBy
 }

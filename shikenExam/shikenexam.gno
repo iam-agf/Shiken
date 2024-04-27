@@ -9,7 +9,6 @@ import (
 )
 
 type Exam struct {
-	creator           std.Address         // Creator of Exam
 	title             string              // Name of Exam
 	description       string              // Description for Exam
 	id 				  int   		      // Id of the exam
@@ -38,7 +37,6 @@ func NewExam(title string, description string, questions string, applicants []st
 	}
 
 	return &Exam{
-		creator: std.GetOrigCaller(),
 		id: id,
 		title: title,
 		description: description,
