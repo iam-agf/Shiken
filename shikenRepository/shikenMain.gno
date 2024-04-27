@@ -12,9 +12,10 @@ import (
 
 // Error outputs
 const ErrNoExistingId = "Id requested doesn't exist"
-const ErrEmptyTitle = "Exam title can't be empty"
 const ErrNoPendingExams = "You don't have pending exams!"
+const ErrEmptyTitle = "Exam title can't be empty"
 const ErrAddressNotAllowed = "Address not allowed!"
+const ErrIdNotAnInteger = "Id isn't an integer"
 
 // Main structure that stores relevant information
 var MainRepository Repository
@@ -128,7 +129,7 @@ func ReadOneQuestion(id string) string {
 	return str
 }
 
-// Deletes the question with the given id if the caller is the creator and if 
+// Deletes the question with the given id if the caller is the creator and if:
 // 1. the question hasn't been used in any exam (If you delete it first in the
 // exam, you can remove it).
 // 2. the question was not used in previous exams.
@@ -138,10 +139,29 @@ func DeleteQuestion(id string) {
 	if caller != Creator {
 		panic(ErrAddressNotAllowed)
 	}
-	idInt := strconv.Atoi(id)
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		panic(ErrIdNotAnInteger)
+	}
 	MainRepository.DeleteQuestion(idInt)
-
 }
+
+// Deletes the question with the given id if the caller is the creator and if:
+// 1. The exam hasn't started yet
+// 2. The exam doesn't have applicants
+// 3. The exam doesn't have questions
+func DeleteExam(id string) {
+	caller := std.GetOrigCaller().String()
+	if caller != Creator {
+		panic(ErrAddressNotAllowed)
+	}
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		panic(ErrIdNotAnInteger)
+	}
+	MainRepository.DeleteExam(idInt)
+}
+
 
 // Establishes the exams the applicant can access
 func SetApplicant(addr string, idInt int) {
@@ -184,4 +204,8 @@ func GetMyPendingExams() string {
 // Returns the owner of the realm
 func GetCreator() string {
 	return Creator
+}
+
+func GetExamsArrayGivenQuestion(id string) []string {
+	return MainRepository.GetArrayExamsUsingThisQuestion(id)
 }

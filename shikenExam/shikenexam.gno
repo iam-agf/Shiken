@@ -100,3 +100,18 @@ func (e *Exam) GetApplicants() []string {
 	})
 	return applicants
 }
+
+// Returns the avl.Tree of addresses allowed to apply to this Exam
+func (e *Exam) GetApplicantsTree() avl.Tree {
+	return e.applicants
+}
+
+// Returns the startTime of the exam
+func (e *Exam) GetStartTime() time.Time {
+	return e.startTime
+}
+
+// Returns the endTime of the exam
+func (e *Exam) GetEndTime() time.Time {
+	return e.endTime
+}
