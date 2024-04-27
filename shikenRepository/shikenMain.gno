@@ -12,7 +12,6 @@ import (
 
 // Error outputs
 const ErrNoExistingId = "Id requested doesn't exist"
-const ErrNotPossibleToDelete = "Id requested can't be deleted"
 const ErrEmptyTitle = "Exam title can't be empty"
 const ErrNoPendingExams = "You don't have pending exams!"
 const ErrAddressNotAllowed = "Address not allowed!"
@@ -20,13 +19,12 @@ const ErrAddressNotAllowed = "Address not allowed!"
 // Main structure that stores relevant information
 var MainRepository Repository
 var Applicants avl.Tree
-var Creator std.Address
+var Creator string
 
 func init() {
 	// Sets the creator of the Realm
-	Creator = std.PrevRealm().Addr()
+	Creator = std.PrevRealm().Addr().String()
 	Applicants = avl.Tree{}
-	MainRepository = Repository{}
 }
 
 func Render(path string) string {
@@ -52,7 +50,7 @@ func Render(path string) string {
 
 // Add a Questions to the MainRepository Structure
 func AddQuestion(statement string, kind uint, options string, categories string, answer string) {
-	caller := std.GetOrigCaller()
+	caller := std.GetOrigCaller().String()
 	if caller != Creator {
 		panic(ErrAddressNotAllowed)
 	}
@@ -61,7 +59,7 @@ func AddQuestion(statement string, kind uint, options string, categories string,
 
 // Add an Exam to the MainRepository Structure
 func AddExam(title string, questions string, description string, applicantsString string) {
-	caller := std.GetOrigCaller()
+	caller := std.GetOrigCaller().String()
 	if caller != Creator {
 		panic(ErrAddressNotAllowed)
 	}
@@ -69,21 +67,16 @@ func AddExam(title string, questions string, description string, applicantsStrin
 		panic(ErrEmptyTitle)
 	}
 	applicantsArray := strings.Split(applicantsString,",")
-	id := MainRepository.AddExam(title, questions, description, applicantsArray)
+	id := MainRepository.GetIdExam()
+	MainRepository.AddExam(title, questions, description, applicantsArray)
 	for _, appl := range applicantsArray {
 		SetApplicant(appl, id)
 	}
 }
 
-// Read all the exams and returns it as a string if the caller is the creator.
-// If the caller isn't the creator returns an empty string 
+// Read all the exams and returns it as a string. It won't matter if an external
+// reads it because it will be hashed by web2 infrastructure.
 func ReadExams() string {
-	// Blocker to avoid panic issue
-	caller := std.GetOrigCaller()
-	if caller != Creator {
-		return ""
-	}
-
 	// In case the address is allowed
 	var str = ""
 	ids := MainRepository.GetIdExam()
@@ -96,15 +89,10 @@ func ReadExams() string {
 	return str
 }
 
-// Reads the exam with the given id and returns it as a string if the caller is 
-// the creator. If the caller isn't the creator returns an empty string
+// Reads the exam with the given id and returns it as a string. 
+// It won't matter if an external reads it because it will be hashed by 
+// web2 infrastructure.
 func ReadOneExam(id string) string {
-	// Blocker for not allowed address
-	caller := std.GetOrigCaller()
-	if caller != Creator {
-		return ""
-	}
-
 	var str string 
 	e := MainRepository.GetExamById(id)
 	str += "## " + e.GetTitle() + "\n"
@@ -117,8 +105,8 @@ func ReadOneExam(id string) string {
 	return str
 }
 
-// Read all the questions and returns it as a string if the caller is the 
-// creator. If the caller isn't the creator returns an empty string
+// Read all the questions and returns it as a string. It won't matter if an 
+// external reads it because it will be hashed by web2 infrastructure.
 func ReadQuestions() string {
 	var str string
 	ids := MainRepository.GetIdQuestion()
@@ -146,15 +134,12 @@ func ReadOneQuestion(id string) string {
 // 2. the question was not used in previous exams.
 // If the caller isn't the creator, it panics.
 func DeleteQuestion(id string) { 
-	caller := std.GetOrigCaller()
+	caller := std.GetOrigCaller().String()
 	if caller != Creator {
 		panic(ErrAddressNotAllowed)
 	}
-	if MainRepository.CanDeleteQuestion(id) {
-		MainRepository.Questions.Remove(id)
-	} else {
-		panic(ErrNotPossibleToDelete)
-	}
+	idInt := strconv.Atoi(id)
+	MainRepository.DeleteQuestion(idInt)
 
 }
 
@@ -162,7 +147,7 @@ func DeleteQuestion(id string) {
 func SetApplicant(addr string, idInt int) {
 	// Forbids any address different from the creator to change the access
 	// to exams
-	caller := std.GetOrigCaller()
+	caller := std.GetOrigCaller().String()
 	if caller != Creator {
 		panic(ErrAddressNotAllowed)
 	}
@@ -198,5 +183,5 @@ func GetMyPendingExams() string {
 
 // Returns the owner of the realm
 func GetCreator() string {
-	return Creator.String()
+	return Creator
 }

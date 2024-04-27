@@ -21,17 +21,9 @@ type Exam struct {
 	endTime		  	  time.Time           // Time the exam should end
 }
 
-func NewExam(title string, description string, questions string, applicants []string, id int) *Exam {
-	var questionIds []int
+func NewExam(title string, description string, questions []int, applicants []string, id int) *Exam {
 	var applicantsTree avl.Tree
-	questionStrings := strings.Split(questions, ",")
-	for _, q := range questionStrings{
-		qId, err := strconv.Atoi(q)
-		if err != nil {
-			panic(err)
-		}
-		questionIds = append(questionIds, qId)
-	}
+
 	for _, appl := range applicants{
 		applicantsTree.Set(appl, true)
 	}
@@ -40,7 +32,7 @@ func NewExam(title string, description string, questions string, applicants []st
 		id: id,
 		title: title,
 		description: description,
-		questions: questionIds,
+		questions: questions,
 		applicants: applicantsTree,
 	}
 }
