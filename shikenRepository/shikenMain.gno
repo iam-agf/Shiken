@@ -50,20 +50,14 @@ func Render(path string) string {
 // Add functions
 
 // Add a Questions to the MainRepository Structure
-func AddQuestion(statement string, kind uint, options string, categories string, answer string) {
-	caller := std.GetOrigCaller().String()
-	if caller != Creator {
-		panic(ErrAddressNotAllowed)
-	}
-	MainRepository.AddQuestion(statement, kind, options, categories, answer)
+func AddQuestion(statement string, kind uint, options string, answer string) {
+	AddressAllowed()
+	MainRepository.AddQuestion(statement, kind, options, answer)
 }
 
 // Add an Exam to the MainRepository Structure
 func AddExam(title string, questions string, description string, applicantsString string) {
-	caller := std.GetOrigCaller().String()
-	if caller != Creator {
-		panic(ErrAddressNotAllowed)
-	}
+	AddressAllowed()
 	if len(title) == 0 {
 		panic(ErrEmptyTitle)
 	}
@@ -76,8 +70,9 @@ func AddExam(title string, questions string, description string, applicantsStrin
 }
 
 // Duplicates an exam based on a previous one
-func DuplicateExam(oe string) {
-	oldExam := MainRepository.GetExamById(oe)
+func DuplicateExam(oId string) {
+	AddressAllowed()
+	oldExam := MainRepository.GetExamById(oId)
 	title := oldExam.GetTitle()
 	description := oldExam.GetDescription()
 	
@@ -87,20 +82,12 @@ func DuplicateExam(oe string) {
 	newExam := MainRepository.GetExamById(strconv.Itoa(newExamId))
 	
 	// Optional parameters added
-	categories := oldExam.GetCategories()
-	if len(categories) > 0 {
-		newExam.UpdateCategories(categories)
-	}
 	questions := oldExam.GetQuestions()
 	if len(questions) > 0 {
 		newExam.UpdateQuestions(questions)
 		for _, q := range questions{
 			MainRepository.AppendExamUsingQuestionId(strconv.Itoa(q), strconv.Itoa(newExamId))
 		}
-	}
-	ponderation := oldExam.GetPonderation()
-	if ponderation.Size() > 0 {
-		newExam.UpdatePonderation(ponderation)
 	}
 	applicants := oldExam.GetApplicantsTree()
 	if applicants.Size() > 0 {
@@ -111,6 +98,7 @@ func DuplicateExam(oe string) {
 // Read all the exams and returns it as a string. It won't matter if an external
 // reads it because it will be hashed by web2 infrastructure.
 func ReadExams() string {
+	AddressAllowed()
 	// In case the address is allowed
 	var str = ""
 	ids := MainRepository.GetIdExam()
@@ -127,6 +115,7 @@ func ReadExams() string {
 // It won't matter if an external reads it because it will be hashed by 
 // web2 infrastructure.
 func ReadOneExam(id string) string {
+	AddressAllowed()
 	var str string 
 	e := MainRepository.GetExamById(id)
 	str += "## " + e.GetTitle() + "\n"
@@ -142,6 +131,7 @@ func ReadOneExam(id string) string {
 // Read all the questions and returns it as a string. It won't matter if an 
 // external reads it because it will be hashed by web2 infrastructure.
 func ReadQuestions() string {
+	AddressAllowed()
 	var str string
 	ids := MainRepository.GetIdQuestion()
 	for id := 1; id <= ids; id++{
@@ -154,6 +144,7 @@ func ReadQuestions() string {
 // caller is the creator. If the caller isn't the creator returns an empty
 // string.
 func ReadOneQuestion(id string) string {
+	AddressAllowed()
 	var str string
 	content := MainRepository.ReadQuestion(id)
 	if content != ErrNoExistingId{
@@ -168,10 +159,7 @@ func ReadOneQuestion(id string) string {
 // 2. the question was not used in previous exams.
 // If the caller isn't the creator, it panics.
 func DeleteQuestion(id string) { 
-	caller := std.GetOrigCaller().String()
-	if caller != Creator {
-		panic(ErrAddressNotAllowed)
-	}
+	AddressAllowed()
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		panic(ErrIdNotAnInteger)
@@ -184,10 +172,7 @@ func DeleteQuestion(id string) {
 // 2. The exam doesn't have applicants
 // 3. The exam doesn't have questions
 func DeleteExam(id string) {
-	caller := std.GetOrigCaller().String()
-	if caller != Creator {
-		panic(ErrAddressNotAllowed)
-	}
+	AddressAllowed()
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		panic(ErrIdNotAnInteger)
@@ -195,15 +180,9 @@ func DeleteExam(id string) {
 	MainRepository.DeleteExam(idInt)
 }
 
-
 // Establishes the exams the applicant can access
 func SetApplicant(addr string, idInt int) {
-	// Forbids any address different from the creator to change the access
-	// to exams
-	caller := std.GetOrigCaller().String()
-	if caller != Creator {
-		panic(ErrAddressNotAllowed)
-	}
+	AddressAllowed()
 	// Start of main set
 	id := strconv.Itoa(idInt)
 	if _, ok := Applicants.Get(addr); ok {
@@ -216,6 +195,27 @@ func SetApplicant(addr string, idInt int) {
 		Applicants.Set(addr, applicantExams)
 	}
 }
+
+func GetExamsArrayGivenQuestion(id string) []string {
+	AddressAllowed()
+	return MainRepository.GetArrayExamsUsingThisQuestion(id)
+}
+
+// Blocker to restrict to creator
+func AddressAllowed() {
+	caller := std.GetOrigCaller().String()
+	if caller != Creator {
+		panic(ErrAddressNotAllowed)
+	}
+	
+}
+
+// Returns the owner of the realm
+func GetCreator() string {
+	return Creator
+}
+
+// All public Functions
 
 // Returns the list of ids of the exams the applicant is going to do.
 // It doesn't show the exams the user has already made
@@ -234,11 +234,26 @@ func GetMyPendingExams() string {
 	}
 }
 
-// Returns the owner of the realm
-func GetCreator() string {
-	return Creator
+// Makes the caller drop the exam if is registered in it
+func DropExam(id string) {
+	caller := std.GetOrigCaller().String()
+	exam := MainRepository.GetExamById(id)
+	applicantsInterface := exam.GetApplicantsTree()
+	applicants := applicantsInterface.(avl.Tree)
+	applicants.Remove(caller)
+	exam.UpdateApplicants(applicants)
 }
 
-func GetExamsArrayGivenQuestion(id string) []string {
-	return MainRepository.GetArrayExamsUsingThisQuestion(id)
+// answers parameter has to be a string because can't be sent decrypted
+// Or could be read.
+func SendAnswers(examId string, answers string) { 
+	caller := std.GetOrigCaller().String()
+	exam := MainRepository.GetExamById(examId)
+	valid := exam.VerifyApplicant(caller)
+	if !valid {
+		panic(ErrAddressNotAllowed)
+	}
+	answersInterface := exam.GetAnswerApplicantsTree()
+	answersTree := answersInterface.(avl.Tree)
+	answersTree.Set(caller, answers)
 }

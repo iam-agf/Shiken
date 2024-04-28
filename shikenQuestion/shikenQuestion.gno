@@ -8,14 +8,11 @@ import "std"
 
 type Question struct {
 	answer		string   	 	// Answer. It must be contained in the options.
-	author		std.Address  	// address which created the Question. Not editable.
-	categories 	[]string 		// category in the exam this question belongs
 	id       	int				// identifier of this question. Not editable
 	kind		uint     		// type of questions as in multiple choice, true/false or open (0,1,2). Not editable.
 	options		[]string 		// The encrypted answer(s), if question is multiple choice this will contain multiple options.
 	question	string   		// The statement of the question.
 	public		bool 			// The question is public or not.
-	hash		string			// To make the question encrypted.
 	canRead		bool			// Allows the exam container to read the full information.
 }
 
@@ -28,13 +25,17 @@ const ErrShortOptionsList = "options length must be greater or equal to 4"
 const ErrEmptyOption = "option entry is empty"
 const ErrRepeatedOption = "option entry repeated"
 const ErrAnswerNotInOption = "answer not in options"
+const ErrQuestionTypeForbiddenAction = "this question can't change its options"
+const ErrCantDeleteMoreOptions = "can't delete more options. Minimum is 4"
+const ErrNotExistingOption = "Given Option doesn't exist"
+const ErrAnswerNotRemovable = "answer can't be removed"
 
 // Panics for Open ended Questions
 const ErrOpenQuestionOptions = "open question don't require options"
 const ErrOpenQuestionAnswer = "open question don't require answer"
 
 // Creates a new question
-func NewQuestion(question string, kind uint, id int, options []string, answer string, categories []string) *Question {
+func NewQuestion(question string, kind uint, id int, options []string, answer string) *Question {
 	// If the question is True-False the options are set to these options
 	if len(question) < 5 {
 		panic(ErrQuestionTooShort)
@@ -43,7 +44,7 @@ func NewQuestion(question string, kind uint, id int, options []string, answer st
 	case uint(0):
 		verifyMultipleOptionQuestion(options, answer)
 	case uint(1):
-		options = []string{"True", "False", "None", "No answer"}
+		options = []string{"True", "False", "Can't be determined", "No answer"}
 		verifyTrueFalseQuestion(options, answer)
 	case uint(2):
 		verifyOpenEndedQuestion(options, answer)
@@ -52,11 +53,9 @@ func NewQuestion(question string, kind uint, id int, options []string, answer st
 	}
 
 	return &Question{
-		author:     std.GetOrigCaller(),
 		id:         id,
 		kind:       kind,
 		answer:     answer,
-		categories: categories,
 		question:   question,
 		options:    options,
 	}
@@ -119,8 +118,12 @@ func verifyOpenEndedQuestion(options []string, answer string) {
 
 func (s *Question) RemoveOption(option string) {
 	if s.GetKind() == 0 {
+		ans := s.GetAnswer()
+		if ans == option {
+			panic(ErrAnswerNotRemovable)
+		}
 		if len(s.GetOptions()) == 4 {
-			panic("can't delete options")
+			panic(ErrCantDeleteMoreOptions)
 		}
 		indexToDelete := -1
 		for i, v := range s.options {
@@ -129,11 +132,11 @@ func (s *Question) RemoveOption(option string) {
 			}
 		}
 		if indexToDelete == -1 {
-			panic("Option not listed in question options")
+			panic(ErrNotExistingOption)
 		}
 		s.options = append(s.options[:indexToDelete], s.options[indexToDelete+1:]...)
 	} else {
-		panic("Only Multiple option Questions can remove options")
+		panic(ErrQuestionTypeForbiddenAction)
 	}
 }
 
@@ -151,12 +154,23 @@ func (s *Question) SetQuestion(question string) {
 	}
 }
 
-func (s *Question) SetCategories(categories []string) {
-	s.categories = categories
+func (s *Question) SetPublic() {
+	s.public = true
 }
 
 func (s *Question) SetOptions(options []string) {
-	s.options = options
+	if s.GetKind() != 0{
+		panic(ErrQuestionTypeForbiddenAction)
+	}
+	answer := s.GetAnswer()
+	for _, opt := range options {
+		if answer == opt {
+			if len(options) >= 4{
+				s.options = options
+			}
+		}
+	}
+	panic(ErrAnswerNotInOption)
 }
 
 // Get functions
@@ -165,22 +179,18 @@ func (s *Question) SetOptions(options []string) {
 func (s *Question) GetOptions() []string {
 	return s.options
 }
-
 //Get answer of question
 func (s *Question) GetAnswer() string {
 	return s.answer
 }
-
-//Get categories of question
-func (s *Question) GetCategories() []string {
-	return s.categories
-}
-
 //Get statement of question
 func (s *Question) GetQuestion() string {
 	return s.question
 }
-
+//Get if question is public
+func (s *Question) GetPublic() bool {
+	return s.public
+}
 //Get kind of question
 func (s *Question) GetKind() uint {
 	return s.kind

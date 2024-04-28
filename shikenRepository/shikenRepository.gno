@@ -32,11 +32,10 @@ const ErrQuestionNotUsed = "Question isn't used"
 // Add functions
 
 // Add Question to the Repository
-func (r *Repository) AddQuestion(statement string, kind uint, options string, categories string, answer string) {
-	categoriesArray := separateContent(categories)
+func (r *Repository) AddQuestion(statement string, kind uint, options string, answer string) {
 	optionsArray := separateContent(options)
 	r.IncreaseIdQuestion()
-	q := shikenquestion.NewQuestion(statement, kind, r.GetIdQuestion(), optionsArray, answer, categoriesArray)
+	q := shikenquestion.NewQuestion(statement, kind, r.GetIdQuestion(), optionsArray, answer)
 	r.Questions.Set(strconv.Itoa(r.GetIdQuestion()), q)
 }
 

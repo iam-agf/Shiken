@@ -12,14 +12,14 @@ type Exam struct {
 	title             string              // Name of Exam
 	description       string              // Description for Exam
 	id 				  int   		      // Id of the exam
-	categories        []string            // Categories where this Exam is involved.
 	questions         []int 			  // Set of ids of the questions to be asked in the Exam
-	ponderation       avl.Tree            // Scoring for the questions.
 	applicants        avl.Tree            // List of users that can apply to this Exam
 	answersApplicants avl.Tree            // Answers from the Applicants
 	startTime		  time.Time           // Time the exam should start
 	endTime		  	  time.Time           // Time the exam should end
 }
+
+const ErrAddressNotAllowed = "Address not allowed!"
 
 func NewExam(title string, description string, questions []int, applicants []string, id int) *Exam {
 	var applicantsTree avl.Tree
@@ -47,8 +47,13 @@ func (e *Exam) AddApplicant(applicant std.Address) bool {
 
 // Returns if the given address is allowed to apply to 
 // this exam
-func (e *Exam) VerifyApplicant(applicant std.Address) bool {
-	return e.applicants.Has(applicant.String())
+func (e *Exam) VerifyApplicant(applicant string) bool {
+	_, ok := e.applicants.Get(applicant)
+	if !ok{
+		return false
+	} else {
+		return true
+	}
 }
 
 // Returns the list of addresses allowed to apply to this Exam
@@ -71,14 +76,8 @@ func (e *Exam) GetDescription() string {
 func (e *Exam) GetId() int {
 	return e.id
 }
-func (e *Exam) GetCategories() []string {
-	return e.categories
-}
 func (e *Exam) GetQuestions() []int {
 	return e.questions
-}
-func (e *Exam) GetPonderation() avl.Tree {
-	return e.ponderation
 }
 func (e *Exam) GetApplicantsTree() avl.Tree {
 	return e.applicants
@@ -101,14 +100,8 @@ func (e *Exam) UpdateTitle(c string) {
 func (e *Exam) UpdateDescription(c string) {
 	e.description = c
 }
-func (e *Exam) UpdateCategories(c []string) {
-	e.categories = c
-}
 func (e *Exam) UpdateQuestions(c []int) {
 	e.questions = c
-}
-func (e *Exam) UpdatePonderation(c avl.Tree) {
-	e.ponderation = c
 }
 func (e *Exam) UpdateApplicants(c avl.Tree) {
 	e.applicants = c
@@ -118,4 +111,10 @@ func (e *Exam) UpdateStartTime(c time.Time) {
 }
 func (e *Exam) UpdateEndTime(c time.Time) {
 	e.endTime = c
+}
+
+// Applicants functions
+
+func (e *Exam) SendAnswers(applicant string, answers avl.Tree){
+	e.answersApplicants.Set(applicant, answers)
 }
