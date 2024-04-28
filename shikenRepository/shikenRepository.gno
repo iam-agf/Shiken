@@ -75,12 +75,11 @@ func (r *Repository) DeleteQuestion(idInt int) {
 		panic(ErrQuestionUnderUsage)
 	}
 }
-
 func (r *Repository) DeleteExam(idInt int) {
 	eId := strconv.Itoa(idInt)
 	if r.CanDeleteExam(eId) {
 		r.QuestionsUsed.Iterate("","", func(qId string, value interface{}) bool {
-			r.UpdateExamsUsingQuestionId(qId,eId)
+			r.RemoveExamUsingQuestionId(qId,eId)
 		})
 		r.Exams.Remove(eId)
 	} else {
@@ -98,7 +97,7 @@ func separateContent(words string) []string {
 	separatedWords := strings.Split(words, ",")
 	return separatedWords
 }
-
+// Converts an array of strings into an array of ints
 func stringsToInts(questionStrings []string) []int {
 	var questionIds []int
 	for _, q := range questionStrings{
@@ -114,14 +113,16 @@ func stringsToInts(questionStrings []string) []int {
 // Checks if a question has been used in an exam
 // so it can be deleted or not
 func (r *Repository) CanDeleteQuestion(id string) bool {
-	exams := r.GetExamsUsingThisQuestions(id)
-	used, dontExist := exams.Get(id)
-	if !dontExist {
-		return true 
+	examsInterface, dontExist := r.QuestionsUsed.Get(id)
+	if !dontExist{
+		return true
+	}
+	exams := examsInterface.(avl.Tree)
+	if exams.Size() == 0 {
+		return true
 	} else {
 		return false
 	}
-	return true
 }
 
 // Checks if an exam hasn't started yet, doesn't have questions or doesn't
@@ -174,8 +175,8 @@ func (r *Repository) IncreaseIdExam(){
 	r.idExam++
 }
 
-// Get the Questions that are used by an Exam
-func (r *Repository) UpdateExamsUsingQuestionId(qId string, qExam string) {
+// Remove the Exam using this Question
+func (r *Repository) RemoveExamUsingQuestionId(qId string, qExam string) {
 	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the 
 	if !dontExist {
 		panic(ErrQuestionNotUsed)
@@ -187,6 +188,17 @@ func (r *Repository) UpdateExamsUsingQuestionId(qId string, qExam string) {
 	} else {
 		r.QuestionsUsed.Set(qId, questionsTree)
 	}
+}
+
+// Adds an Exam using this Question
+func (r *Repository) AppendExamUsingQuestionId(qId string, qExam string) {
+	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the 
+	if !dontExist {
+		panic(ErrQuestionNotUsed)
+	}
+	questionsTree := avlTreeInterface.(avl.Tree)
+	questionsTree.Set(qExam, true)
+	r.QuestionsUsed.Set(qId, questionsTree)
 }
 
 // ## Read Functions

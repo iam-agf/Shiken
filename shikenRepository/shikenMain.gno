@@ -77,20 +77,35 @@ func AddExam(title string, questions string, description string, applicantsStrin
 
 // Duplicates an exam based on a previous one
 func DuplicateExam(oe string) {
-	newExam := shikenexam.Exam{}
 	oldExam := MainRepository.GetExamById(oe)
 	title := oldExam.GetTitle()
 	description := oldExam.GetDescription()
+	
+	// Creating duplicate
+	MainRepository.AddExam(title, "", description, []string{})
+	newExamId := MainRepository.GetIdExam()
+	newExam := MainRepository.GetExamById(strconv.Itoa(newExamId))
+	
+	// Optional parameters added
 	categories := oldExam.GetCategories()
+	if len(categories) > 0 {
+		newExam.UpdateCategories(categories)
+	}
 	questions := oldExam.GetQuestions()
+	if len(questions) > 0 {
+		newExam.UpdateQuestions(questions)
+		for _, q := range questions{
+			MainRepository.AppendExamUsingQuestionId(strconv.Itoa(q), strconv.Itoa(newExamId))
+		}
+	}
 	ponderation := oldExam.GetPonderation()
+	if ponderation.Size() > 0 {
+		newExam.UpdatePonderation(ponderation)
+	}
 	applicants := oldExam.GetApplicantsTree()
-	newExam.UpdateTitle(title)
-	newExam.UpdateDescription(description)
-	newExam.UpdateCategories(categories)
-	newExam.UpdateQuestions(questions)
-	newExam.UpdatePonderation(ponderation)
-	newExam.UpdateApplicants(applicants)
+	if applicants.Size() > 0 {
+		newExam.UpdateApplicants(applicants)
+	}
 }
 
 // Read all the exams and returns it as a string. It won't matter if an external
