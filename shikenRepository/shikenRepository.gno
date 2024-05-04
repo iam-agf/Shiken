@@ -32,11 +32,12 @@ const ErrQuestionNotUsed = "Question isn't used"
 // Add functions
 
 // Add Question to the Repository
-func (r *Repository) AddQuestion(statement string, kind uint, options string, answer string) {
+func (r *Repository) AddQuestion(statement string, kind string, options string, answer string) {
 	optionsArray := separateContent(options)
 	r.IncreaseIdQuestion()
-	q := shikenquestion.NewQuestion(statement, kind, r.GetIdQuestion(), optionsArray, answer)
-	r.Questions.Set(strconv.Itoa(r.GetIdQuestion()), q)
+	qId := r.GetIdQuestion()
+	q := shikenquestion.NewQuestion(statement, kind, qId, optionsArray, answer)
+	r.Questions.Set(strconv.Itoa(qId), q)
 }
 
 // Add Exam to the Repository
@@ -212,7 +213,7 @@ func (r *Repository) ReadQuestion(id string) string {
 	} else {
 		q := qt.(*shikenquestion.Question)
 		var output string
-		if q.GetKind() != uint(2) {
+		if q.GetKind() != "2" {
 			o := q.GetOptions()
 			output = ufmt.Sprintf(`## %s
 	1) %s

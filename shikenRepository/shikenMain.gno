@@ -40,17 +40,17 @@ func Render(path string) string {
 	default:
 			return ufmt.Sprintf(`
 			%s
-			[exams](/r/dev/shikenrepository:exams)
-			[questions](/r/dev/shikenrepository:questions) <br><br>
-			Created by %s
-			`, words[0], GetCreator())
+			[exams (%d)](/r/dev/shikenrepository:exams)
+			[questions (%d)](/r/dev/shikenrepository:questions) <br><br>
+			Created by %s 
+			`, words[0], MainRepository.GetIdExam(), MainRepository.GetIdQuestion(), GetCreator())
 	}
 }
 
 // Add functions
 
 // Add a Questions to the MainRepository Structure
-func AddQuestion(statement string, kind uint, options string, answer string) {
+func AddQuestion(statement string, kind string, options string, answer string) {
 	AddressAllowed()
 	MainRepository.AddQuestion(statement, kind, options, answer)
 }
@@ -131,7 +131,6 @@ func ReadOneExam(id string) string {
 // Read all the questions and returns it as a string. It won't matter if an 
 // external reads it because it will be hashed by web2 infrastructure.
 func ReadQuestions() string {
-	AddressAllowed()
 	var str string
 	ids := MainRepository.GetIdQuestion()
 	for id := 1; id <= ids; id++{
@@ -219,9 +218,8 @@ func GetCreator() string {
 
 // Returns the list of ids of the exams the applicant is going to do.
 // It doesn't show the exams the user has already made
-func GetMyPendingExams() string {
+func GetMyPendingExams(caller string) string {
 	var examsList string
-	caller := std.GetOrigCaller().String()
 	examsInterface, ok := Applicants.Get(caller)
 	if !ok {
 		panic(ErrNoPendingExams)
