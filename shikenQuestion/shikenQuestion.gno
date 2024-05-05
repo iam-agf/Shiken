@@ -7,32 +7,38 @@ import "std"
 // This way the examinator can't edit the question after has been used in an exam.
 
 type Question struct {
-	answer		string   	 	// Answer. It must be contained in the options.
-	id       	int				// identifier of this question. Not editable
-	kind		string     		// type of questions as in multiple choice, true/false or open (0,1,2). Not editable.
-	options		[]string 		// The encrypted answer(s), if question is multiple choice this will contain multiple options.
-	question	string   		// The statement of the question.
-	public		bool 			// The question is public or not.
-	canRead		bool			// Allows the exam container to read the full information.
+	answer   string   // Answer. It must be contained in the options.
+	id       int      // identifier of this question. Not editable
+	kind     string   // type of questions as in multiple choice, true/false or open (0,1,2). Not editable.
+	options  []string // The encrypted answer(s), if question is multiple choice this will contain multiple options.
+	question string   // The statement of the question.
+	public   bool     // The question is public or not.
+	canRead  bool     // Allows the exam container to read the full information.
 }
 
 // Panics for generic cases
-const ErrQuestionTooShort = "question too short"
-const ErrKindOutOfRange = "kind type must be 1,2 or 3"
-const ErrShortOptionsList = "options length must be greater or equal to 4"
+const (
+	ErrQuestionTooShort = "question too short"
+	ErrKindOutOfRange   = "kind type must be 1,2 or 3"
+	ErrShortOptionsList = "options length must be greater or equal to 4"
+)
 
 // Panics for options
-const ErrEmptyOption = "option entry is empty"
-const ErrRepeatedOption = "option entry repeated"
-const ErrAnswerNotInOption = "answer not in options"
-const ErrQuestionTypeForbiddenAction = "this question can't change its options"
-const ErrCantDeleteMoreOptions = "can't delete more options. Minimum is 4"
-const ErrNotExistingOption = "Given Option doesn't exist"
-const ErrAnswerNotRemovable = "answer can't be removed"
+const (
+	ErrEmptyOption                 = "option entry is empty"
+	ErrRepeatedOption              = "option entry repeated"
+	ErrAnswerNotInOption           = "answer not in options"
+	ErrQuestionTypeForbiddenAction = "this question can't change its options"
+	ErrCantDeleteMoreOptions       = "can't delete more options. Minimum is 4"
+	ErrNotExistingOption           = "Given Option doesn't exist"
+	ErrAnswerNotRemovable          = "answer can't be removed"
+)
 
 // Panics for Open ended Questions
-const ErrOpenQuestionOptions = "open question don't require options"
-const ErrOpenQuestionAnswer = "open question don't require answer"
+const (
+	ErrOpenQuestionOptions = "open question don't require options"
+	ErrOpenQuestionAnswer  = "open question don't require answer"
+)
 
 // Creates a new question
 func NewQuestion(question string, kind string, id int, options []string, answer string) *Question {
@@ -53,11 +59,11 @@ func NewQuestion(question string, kind string, id int, options []string, answer 
 	}
 
 	return &Question{
-		id:         id,
-		kind:       kind,
-		answer:     answer,
-		question:   question,
-		options:    options,
+		id:       id,
+		kind:     kind,
+		answer:   answer,
+		question: question,
+		options:  options,
 	}
 }
 
@@ -159,13 +165,13 @@ func (s *Question) SetPublic() {
 }
 
 func (s *Question) SetOptions(options []string) {
-	if s.GetKind() != "0"{
+	if s.GetKind() != "0" {
 		panic(ErrQuestionTypeForbiddenAction)
 	}
 	answer := s.GetAnswer()
 	for _, opt := range options {
 		if answer == opt {
-			if len(options) >= 4{
+			if len(options) >= 4 {
 				s.options = options
 			}
 		}
@@ -175,23 +181,27 @@ func (s *Question) SetOptions(options []string) {
 
 // Get functions
 
-//Get options of question
+// Get options of question
 func (s *Question) GetOptions() []string {
 	return s.options
 }
-//Get answer of question
+
+// Get answer of question
 func (s *Question) GetAnswer() string {
 	return s.answer
 }
-//Get statement of question
+
+// Get statement of question
 func (s *Question) GetQuestion() string {
 	return s.question
 }
-//Get if question is public
+
+// Get if question is public
 func (s *Question) GetPublic() bool {
 	return s.public
 }
-//Get kind of question
+
+// Get kind of question
 func (s *Question) GetKind() string {
 	return s.kind
 }

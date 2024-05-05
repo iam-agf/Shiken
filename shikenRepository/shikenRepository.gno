@@ -1,33 +1,35 @@
 package shikenrepository
 
 import (
-	"strings"
+	std "std"
 	"strconv"
-	avl 			"gno.land/p/demo/avl"
-	ufmt			"gno.land/p/demo/ufmt"
-	shikenquestion 	"gno.land/p/dev/shikenquestion"
-	shikenexam 		"gno.land/p/dev/shikenexam"
-	std				"std"
+	"strings"
+
+	avl "gno.land/p/demo/avl"
+	ufmt "gno.land/p/demo/ufmt"
+	shikenexam "gno.land/p/dev/shikenexam"
+	shikenquestion "gno.land/p/dev/shikenquestion"
 )
 
 const ErrNoExistingExam = "No exam with given Id"
 
-
 type Repository struct {
-	Exams avl.Tree				// List of Exams
-	Questions avl.Tree			// List of Questions
-	QuestionsUsed avl.Tree 		// qId -> avl.Tree{examID -> true} using the question with id 'qId'
-	Pubkey string				// Public key to encrypt all content of this Repository
-	privkey string				// Private Key (previously encrypted by user password via off-chain)
-	idQuestion int				// Id of the next Question
-	idExam int					// Id of next Exam
+	Exams         avl.Tree // List of Exams
+	Questions     avl.Tree // List of Questions
+	QuestionsUsed avl.Tree // qId -> avl.Tree{examID -> true} using the question with id 'qId'
+	Pubkey        string   // Public key to encrypt all content of this Repository
+	privkey       string   // Private Key (previously encrypted by user password via off-chain)
+	idQuestion    int      // Id of the next Question
+	idExam        int      // Id of next Exam
 }
 
 // Errors
 
-const ErrQuestionUnderUsage = "Question under usage"
-const ErrExamUnderUsage = "Exam under usage"
-const ErrQuestionNotUsed = "Question isn't used"
+const (
+	ErrQuestionUnderUsage = "Question under usage"
+	ErrExamUnderUsage     = "Exam under usage"
+	ErrQuestionNotUsed    = "Question isn't used"
+)
 
 // Add functions
 
@@ -48,7 +50,7 @@ func (r *Repository) AddExam(title string, questions string, description string,
 	questionStrings := strings.Split(questions, ",")
 	questionInts := stringsToInts(questionStrings)
 	e := shikenexam.NewExam(title, description, questionInts, applicants, idExam)
-	r.Exams.Set(idExamString,e)
+	r.Exams.Set(idExamString, e)
 	// Registers in each question the exam that will use it
 	for _, qId := range questionStrings {
 		// if the question isn't registered generate the avl.Tree and set the values
@@ -57,10 +59,10 @@ func (r *Repository) AddExam(title string, questions string, description string,
 			avlTreeQuestion.Set(idExamString, true)
 			r.QuestionsUsed.Set(qId, avlTreeQuestion)
 			// else just register the exam
-			} else {
-				examsStruct := exams.(avl.Tree)
-				examsStruct.Set(idExamString,true)
-				r.QuestionsUsed.Set(qId, examsStruct)
+		} else {
+			examsStruct := exams.(avl.Tree)
+			examsStruct.Set(idExamString, true)
+			r.QuestionsUsed.Set(qId, examsStruct)
 		}
 	}
 }
@@ -75,11 +77,12 @@ func (r *Repository) DeleteQuestion(idInt int) {
 		panic(ErrQuestionUnderUsage)
 	}
 }
+
 func (r *Repository) DeleteExam(idInt int) {
 	eId := strconv.Itoa(idInt)
 	if r.CanDeleteExam(eId) {
-		r.QuestionsUsed.Iterate("","", func(qId string, value interface{}) bool {
-			r.RemoveExamUsingQuestionId(qId,eId)
+		r.QuestionsUsed.Iterate("", "", func(qId string, value interface{}) bool {
+			r.RemoveExamUsingQuestionId(qId, eId)
 		})
 		r.Exams.Remove(eId)
 	} else {
@@ -97,10 +100,11 @@ func separateContent(words string) []string {
 	separatedWords := strings.Split(words, ",")
 	return separatedWords
 }
+
 // Converts an array of strings into an array of ints
 func stringsToInts(questionStrings []string) []int {
 	var questionIds []int
-	for _, q := range questionStrings{
+	for _, q := range questionStrings {
 		qId, err := strconv.Atoi(q)
 		if err != nil {
 			panic(err)
@@ -114,7 +118,7 @@ func stringsToInts(questionStrings []string) []int {
 // so it can be deleted or not
 func (r *Repository) CanDeleteQuestion(id string) bool {
 	examsInterface, dontExist := r.QuestionsUsed.Get(id)
-	if !dontExist{
+	if !dontExist {
 		return true
 	}
 	exams := examsInterface.(avl.Tree)
@@ -130,7 +134,7 @@ func (r *Repository) CanDeleteQuestion(id string) bool {
 func (r *Repository) CanDeleteExam(id string) bool {
 	examInterface, dontExist := r.Exams.Get(id)
 	if !dontExist {
-		return true 
+		return true
 	} else {
 		exam := examInterface.(*shikenexam.Exam)
 
@@ -162,28 +166,28 @@ func (r *Repository) CanDeleteExam(id string) bool {
 func (r *Repository) DetachQuestionFromExam(qId string eId string) {
 	return
 }
- */
+*/
 // ## Update Functions
 
 // Increases by 1 the Id for the next question
-func (r *Repository) IncreaseIdQuestion(){
+func (r *Repository) IncreaseIdQuestion() {
 	r.idQuestion++
 }
 
 // Increases by 1 the Id for the next exam
-func (r *Repository) IncreaseIdExam(){
+func (r *Repository) IncreaseIdExam() {
 	r.idExam++
 }
 
 // Remove the Exam using this Question
 func (r *Repository) RemoveExamUsingQuestionId(qId string, qExam string) {
-	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the 
+	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the
 	if !dontExist {
 		panic(ErrQuestionNotUsed)
 	}
 	questionsTree := avlTreeInterface.(avl.Tree)
 	questionsTree.Remove(qExam)
-	if questionsTree.Size() == 0{
+	if questionsTree.Size() == 0 {
 		r.QuestionsUsed.Remove(qId)
 	} else {
 		r.QuestionsUsed.Set(qId, questionsTree)
@@ -192,7 +196,7 @@ func (r *Repository) RemoveExamUsingQuestionId(qId string, qExam string) {
 
 // Adds an Exam using this Question
 func (r *Repository) AppendExamUsingQuestionId(qId string, qExam string) {
-	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the 
+	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the
 	if !dontExist {
 		panic(ErrQuestionNotUsed)
 	}
@@ -209,7 +213,7 @@ func (r *Repository) AppendExamUsingQuestionId(qId string, qExam string) {
 func (r *Repository) ReadQuestion(id string) string {
 	qt, ok := r.Questions.Get(id)
 	if !ok {
-		""
+		return "0"
 	} else {
 		q := qt.(*shikenquestion.Question)
 		var output string
@@ -222,7 +226,7 @@ func (r *Repository) ReadQuestion(id string) string {
 	4) %s
 	`, q.GetQuestion(), o[0], o[1], o[2], o[3])
 		} else {
-			output = "## "+ q.GetQuestion() + "\n (open question) \n"
+			output = "## " + q.GetQuestion() + "\n (open question) \n"
 		}
 		return output + "\n"
 	}
@@ -236,9 +240,9 @@ func (r *Repository) ReadExam(id string) string {
 	ex, ok := r.Exams.Get(id)
 	if !ok {
 		return ""
-	} else{
+	} else {
 		e := ex.(*shikenexam.Exam)
-		output := ufmt.Sprintf("## %s \n %s \n ",e.GetTitle(), e.GetDescription())
+		output := ufmt.Sprintf("## %s \n %s \n ", e.GetTitle(), e.GetDescription())
 		return output
 	}
 	return ""
@@ -268,11 +272,10 @@ func (r *Repository) GetIdExam() int {
 	return r.idExam
 }
 
-
 // Get the Exams that use the Question with the given Id
 func (r *Repository) GetExamsUsingThisQuestions(id string) avl.Tree {
 	examsInterface, ok := r.QuestionsUsed.Get(id)
-	if !ok{
+	if !ok {
 		panic(ErrQuestionNotUsed)
 	}
 	exams := examsInterface.(avl.Tree)
@@ -283,11 +286,11 @@ func (r *Repository) GetExamsUsingThisQuestions(id string) avl.Tree {
 func (r *Repository) GetArrayExamsUsingThisQuestion(id string) []string {
 	var eArr []string
 	examsInterface, ok := r.QuestionsUsed.Get(id)
-	if !ok{
+	if !ok {
 		panic(ErrQuestionNotUsed)
 	}
 	exams := examsInterface.(avl.Tree)
-	exams.Iterate("","", func(key string, value interface{}) bool {
+	exams.Iterate("", "", func(key string, value interface{}) bool {
 		eArr = append(eArr, key)
 	})
 	return eArr
