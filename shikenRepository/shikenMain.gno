@@ -35,8 +35,6 @@ func init() {
 
 func Render(path string) string {
 	words := strings.Split(path, "/")
-	ufmt.Sprintf("%d", MainRepository.GetIdExam())
-	ufmt.Sprintf("%d", MainRepository.GetIdQuestion())
 	switch words[0] {
 	case "exams":
 		return ufmt.Sprintf("Exams %d\n\n%s", MainRepository.GetIdExam(), ReadExams())
@@ -47,9 +45,10 @@ func Render(path string) string {
 			%s
 			[exams (%d)](/r/dev/shikenrepository:exams)
 			[questions (%d)](/r/dev/shikenrepository:questions) <br><br>
-			Created by %s 
+			Created by %s
 			`, words[0], MainRepository.GetIdExam(), MainRepository.GetIdQuestion(), GetCreator())
 	}
+	return ""
 }
 
 // Add functions

@@ -52,9 +52,8 @@ func (e *Exam) VerifyApplicant(applicant string) bool {
 	_, ok := e.applicants.Get(applicant)
 	if !ok {
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
 // Returns the list of addresses allowed to apply to this Exam
