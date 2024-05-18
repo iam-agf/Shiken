@@ -11,16 +11,20 @@ import (
 	shikenquestion "gno.land/p/dev/shikenquestion"
 )
 
-const ErrNoExistingExam = "No exam with given Id"
+const (
+	ErrNoExistingExam  = "No exam with given Id"
+	ErrUnexpectedError = "Something that should never happen, happened"
+)
 
+// To avoid the chance of applicants to know the Topics with Gnoscan,
+// The topics will be also encrypted. It's recommended to use the same
+// password, since it would be really annoying to decrypt them one by one
 type Repository struct {
-	Exams         avl.Tree // List of Exams
-	Questions     avl.Tree // List of Questions
-	QuestionsUsed avl.Tree // qId -> avl.Tree{examID -> true} using the question with id 'qId'
-	Pubkey        string   // Public key to encrypt all content of this Repository
-	privkey       string   // Private Key (previously encrypted by user password via off-chain)
-	idQuestion    int      // Id of the next Question
-	idExam        int      // Id of next Exam
+	Exams             avl.Tree // ExamId -> Exam
+	ExamQuestions     avl.Tree // ExamId -> avl.Tree {QuestionId -> Question} [This way can be encrypted for the applicants]
+	QuestionsByTopics avl.Tree // Topic(any string) -> avl.Tree {QuestionId -> Question}
+	idQuestion        int      // Id of the next Question
+	idExam            int      // Id of next Exam
 }
 
 // Errors
@@ -33,73 +37,61 @@ const (
 
 // Add functions
 
-// Add Question to the Repository
-func (r *Repository) AddQuestion(statement string, kind string, options string, answer string) {
-	optionsArray := separateContent(options)
+// Adds your Question to the Repository in the topic you register.
+// If topic is empty, it will be sent to general
+func (r *Repository) AddQuestion(topic string, statement string, kind string, optionsArray string, answer string, hashAES string) {
+	if topic == "" {
+		topic = "general"
+	}
+	// This is to avoid several topics with typos (It's tough to assume the user knows how to write)
+	topic = strings.ToLower(topic)
+	options := strings.Split(optionsArray, ",")
 	r.IncreaseIdQuestion()
 	qId := r.GetIdQuestion()
-	q := shikenquestion.NewQuestion(statement, kind, qId, optionsArray, answer)
-	r.Questions.Set(strconv.Itoa(qId), q)
+	q := shikenquestion.NewQuestion(statement, kind, qId, options, answer, hashAES)
+	qIdString := strconv.Itoa(qId)
+	topicQuestionsInterface, ok := r.QuestionsByTopics.Get(topic)
+	var topicQuestions avl.Tree
+	if !ok {
+		topicQuestions := avl.Tree{}
+		topicQuestions.Set(qIdString, q)
+	} else {
+		topicQuestions := topicQuestionsInterface.(avl.Tree)
+		topicQuestions.Set(qIdString, q)
+	}
+	r.QuestionsByTopics.Set(topic, topicQuestions)
 }
 
 // Add Exam to the Repository
-func (r *Repository) AddExam(title string, questions string, description string, applicants []string) {
+func (r *Repository) AddExam(title string, questions string, description string, applicants []string, hashAES string) {
 	r.IncreaseIdExam()
 	idExam := r.GetIdExam()
 	idExamString := strconv.Itoa(idExam)
-	questionStrings := strings.Split(questions, ",")
-	questionInts := stringsToInts(questionStrings)
-	e := shikenexam.NewExam(title, description, questionInts, applicants, idExam)
+	// There is no chance to review any content in the exam, so everything enters as how is received
+	// The only non encrypted data is the applicants entry
+	e := shikenexam.NewExam(title, description, questions, applicants, idExam, hashAES)
 	r.Exams.Set(idExamString, e)
 	// Registers in each question the exam that will use it
-	for _, qId := range questionStrings {
-		// if the question isn't registered generate the avl.Tree and set the values
-		if exams, ok := r.QuestionsUsed.Get(qId); !ok {
-			avlTreeQuestion := avl.Tree{}
-			avlTreeQuestion.Set(idExamString, true)
-			r.QuestionsUsed.Set(qId, avlTreeQuestion)
-			// else just register the exam
+}
+
+func (r *Repository) DeleteExam(examId string) {
+	// Ask if it's deletable
+	if canDeleteExam := r.CanDeleteExam(examId); canDeleteExam {
+		// Removes the exam from the list of exams
+		_, ok := r.Exams.Remove(examId)
+		if ok {
+			// Removes the exam questions from the list of exam questions
+			_, okk := r.ExamQuestions.Remove(examId)
+			if !okk {
+				panic(ErrNoExistingExam)
+			}
 		} else {
-			examsStruct := exams.(avl.Tree)
-			examsStruct.Set(idExamString, true)
-			r.QuestionsUsed.Set(qId, examsStruct)
+			panic(ErrNoExistingExam)
 		}
 	}
 }
 
-// ## Remove functions
-
-func (r *Repository) DeleteQuestion(idInt int) {
-	id := strconv.Itoa(idInt)
-	if r.CanDeleteQuestion(id) {
-		r.Questions.Remove(id)
-	} else {
-		panic(ErrQuestionUnderUsage)
-	}
-}
-
-func (r *Repository) DeleteExam(idInt int) {
-	eId := strconv.Itoa(idInt)
-	if r.CanDeleteExam(eId) {
-		r.QuestionsUsed.Iterate("", "", func(qId string, value interface{}) bool {
-			r.RemoveExamUsingQuestionId(qId, eId)
-		})
-		r.Exams.Remove(eId)
-	} else {
-		panic(ErrExamUnderUsage)
-	}
-}
-
 // ## Supporting functions
-
-// Splits the content of a string of words separated by a comma.
-func separateContent(words string) []string {
-	if len(words) == 0 {
-		return []string{}
-	}
-	separatedWords := strings.Split(words, ",")
-	return separatedWords
-}
 
 // Converts an array of strings into an array of ints
 func stringsToInts(questionStrings []string) []int {
@@ -114,21 +106,6 @@ func stringsToInts(questionStrings []string) []int {
 	return questionIds
 }
 
-// Checks if a question has been used in an exam
-// so it can be deleted or not
-func (r *Repository) CanDeleteQuestion(id string) bool {
-	examsInterface, dontExist := r.QuestionsUsed.Get(id)
-	if !dontExist {
-		return true
-	}
-	exams := examsInterface.(avl.Tree)
-	if exams.Size() == 0 {
-		return true
-	} else {
-		return false
-	}
-}
-
 // Checks if an exam hasn't started yet, doesn't have questions or doesn't
 // have applicants to answer if can be deleted or not
 func (r *Repository) CanDeleteExam(id string) bool {
@@ -139,14 +116,18 @@ func (r *Repository) CanDeleteExam(id string) bool {
 		exam := examInterface.(*shikenexam.Exam)
 
 		appls := exam.GetApplicantsTree()
-		qs := exam.GetQuestions()
 		start := exam.GetStartTime()
 		end := exam.GetEndTime()
 
-		// Conditions
+		// conditions
 		noApplicants := appls.Size() == 0
-		noQuestions := len(qs) == 0
 		noTime := start == end
+		examQuestionsInterface, ok := r.ExamQuestions.Get(id)
+		if !ok {
+			panic(ErrUnexpectedError)
+		}
+		examQuestions := examQuestionsInterface.(avl.Tree)
+		noQuestions := examQuestions.Size() == 0
 
 		// filters
 		if noApplicants {
@@ -162,11 +143,6 @@ func (r *Repository) CanDeleteExam(id string) bool {
 	}
 }
 
-/* // Detatch a Question from an Exam
-func (r *Repository) DetachQuestionFromExam(qId string eId string) {
-	return
-}
-*/
 // ## Update Functions
 
 // Increases by 1 the Id for the next question
@@ -179,59 +155,7 @@ func (r *Repository) IncreaseIdExam() {
 	r.idExam++
 }
 
-// Remove the Exam using this Question
-func (r *Repository) RemoveExamUsingQuestionId(qId string, qExam string) {
-	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the
-	if !dontExist {
-		panic(ErrQuestionNotUsed)
-	}
-	questionsTree := avlTreeInterface.(avl.Tree)
-	questionsTree.Remove(qExam)
-	if questionsTree.Size() == 0 {
-		r.QuestionsUsed.Remove(qId)
-	} else {
-		r.QuestionsUsed.Set(qId, questionsTree)
-	}
-}
-
-// Adds an Exam using this Question
-func (r *Repository) AppendExamUsingQuestionId(qId string, qExam string) {
-	avlTreeInterface, dontExist := r.QuestionsUsed.Get(qId) // Gets the
-	if !dontExist {
-		panic(ErrQuestionNotUsed)
-	}
-	questionsTree := avlTreeInterface.(avl.Tree)
-	questionsTree.Set(qExam, true)
-	r.QuestionsUsed.Set(qId, questionsTree)
-}
-
 // ## Read Functions
-
-// Gets the information from a Question and returns
-// a string containing the information related to it
-// to print it wherever is needed
-func (r *Repository) ReadQuestion(id string) string {
-	qt, ok := r.Questions.Get(id)
-	if !ok {
-		return "0"
-	} else {
-		q := qt.(*shikenquestion.Question)
-		var output string
-		if q.GetKind() != "2" {
-			o := q.GetOptions()
-			output = ufmt.Sprintf(`## %s
-	1) %s
-	2) %s
-	3) %s
-	4) %s
-	`, q.GetQuestion(), o[0], o[1], o[2], o[3])
-		} else {
-			output = "## " + q.GetQuestion() + "\n (open question) \n"
-		}
-		return output + "\n"
-	}
-	return ""
-}
 
 // Gets the information from an Exam and returns
 // a string containing the information related to it
@@ -242,17 +166,13 @@ func (r *Repository) ReadExam(id string) string {
 		return ""
 	} else {
 		e := ex.(*shikenexam.Exam)
-		output := ufmt.Sprintf("## %s \n %s \n ", e.GetTitle(), e.GetDescription())
+		output := ufmt.Sprintf("## %s \n %s \n", e.GetTitle(), e.GetDescription())
 		return output
 	}
 	return ""
 }
 
 // ## Get functions
-
-func (r *Repository) GetQuestions() avl.Tree {
-	return r.Questions
-}
 
 func (r *Repository) GetExamById(id string) *shikenexam.Exam {
 	e, ok := r.Exams.Get(id)
@@ -270,28 +190,4 @@ func (r *Repository) GetIdQuestion() int {
 // Gets the last Id used to register an Exam
 func (r *Repository) GetIdExam() int {
 	return r.idExam
-}
-
-// Get the Exams that use the Question with the given Id
-func (r *Repository) GetExamsUsingThisQuestions(id string) avl.Tree {
-	examsInterface, ok := r.QuestionsUsed.Get(id)
-	if !ok {
-		panic(ErrQuestionNotUsed)
-	}
-	exams := examsInterface.(avl.Tree)
-	return exams
-}
-
-// Get the Exams that use the Question with the given Id
-func (r *Repository) GetArrayExamsUsingThisQuestion(id string) []string {
-	var eArr []string
-	examsInterface, ok := r.QuestionsUsed.Get(id)
-	if !ok {
-		panic(ErrQuestionNotUsed)
-	}
-	exams := examsInterface.(avl.Tree)
-	exams.Iterate("", "", func(key string, value interface{}) bool {
-		eArr = append(eArr, key)
-	})
-	return eArr
 }

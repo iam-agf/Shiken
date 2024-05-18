@@ -10,19 +10,20 @@ import (
 )
 
 type Exam struct {
-	title             string    // Name of Exam
-	description       string    // Description for Exam
+	title             string    // Name of Exam (encrypted)
+	description       string    // Description for Exam (encrypted)
 	id                int       // Id of the exam
-	questions         []int     // Set of ids of the questions to be asked in the Exam
+	questions         string    // Set of ids of the questions to be asked in the Exam (encrypted)
 	applicants        avl.Tree  // List of users that can apply to this Exam
 	answersApplicants avl.Tree  // Answers from the Applicants
 	startTime         time.Time // Time the exam should start
 	endTime           time.Time // Time the exam should end
+	hashAES           string    // Encryption key for this exam
 }
 
 const ErrAddressNotAllowed = "Address not allowed!"
 
-func NewExam(title string, description string, questions []int, applicants []string, id int) *Exam {
+func NewExam(title string, description string, questions string, applicants []string, id int, hashAES string) *Exam {
 	var applicantsTree avl.Tree
 
 	for _, appl := range applicants {
@@ -35,19 +36,21 @@ func NewExam(title string, description string, questions []int, applicants []str
 		description: description,
 		questions:   questions,
 		applicants:  applicantsTree,
+		hashAES:     hashAES,
 	}
 }
 
-/* // Adds the given address to the allowed applicants
-// to the exam
-func (e *Exam) AddApplicant(applicant std.Address) bool {
-	if e.endTime == nil || e.endTime <
-	return e.applicants.Set(applicant.String(),true)
+// Adds the given address to the allowed applicants
+// to the exam. There is no need to put any restriction to add
+// an applicant since the applicant will only be able to send
+// his answers if the exam is still in the application window
+func (e *Exam) AddApplicant(applicant string) bool {
+	e.applicants.Set(applicant, true)
+	return e.VerifyApplicant(applicant)
 }
-*/
 
-// Returns if the given address is allowed to apply to
-// this exam
+// Returns if the given address is registered as an allowed one
+// to apply this exam
 func (e *Exam) VerifyApplicant(applicant string) bool {
 	_, ok := e.applicants.Get(applicant)
 	if !ok {
@@ -79,7 +82,7 @@ func (e *Exam) GetId() int {
 	return e.id
 }
 
-func (e *Exam) GetQuestions() []int {
+func (e *Exam) GetQuestions() string {
 	return e.questions
 }
 
@@ -99,6 +102,10 @@ func (e *Exam) GetEndTime() time.Time {
 	return e.endTime
 }
 
+func (e *Exam) GetHashAES() string {
+	return e.hashAES
+}
+
 // Update functions
 
 func (e *Exam) UpdateTitle(c string) {
@@ -109,7 +116,7 @@ func (e *Exam) UpdateDescription(c string) {
 	e.description = c
 }
 
-func (e *Exam) UpdateQuestions(c []int) {
+func (e *Exam) UpdateQuestions(c string) {
 	e.questions = c
 }
 
