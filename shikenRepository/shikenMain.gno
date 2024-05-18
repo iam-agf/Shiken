@@ -18,6 +18,7 @@ const (
 	ErrEmptyTitle        = "Exam title can't be empty"
 	ErrAddressNotAllowed = "Address not allowed!"
 	ErrIdNotAnInteger    = "Id isn't an integer"
+	ErrNoTopic           = "Topic doesn't exist"
 )
 
 // Main structure that stores relevant information
@@ -34,153 +35,86 @@ func init() {
 }
 
 func Render(path string) string {
-	words := strings.Split(path, "/")
-	switch words[0] {
-	case "exams":
-		return ufmt.Sprintf("Exams %d\n\n%s", MainRepository.GetIdExam(), ReadExams())
-	case "questions":
-		return ufmt.Sprintf("Questions %d\n\n%s", MainRepository.GetIdQuestion(), ReadQuestions())
-	default:
-		return ufmt.Sprintf(`
-			%s
-			[exams (%d)](/r/dev/shikenrepository:exams)
-			[questions (%d)](/r/dev/shikenrepository:questions) <br><br>
-			Created by %s
-			`, words[0], MainRepository.GetIdExam(), MainRepository.GetIdQuestion(), GetCreator())
-	}
-	return ""
+	output := ufmt.Sprintf(`
+		[exams (%d)](/r/dev/shikenrepository:exams)
+		[questions (%d)](/r/dev/shikenrepository:questions) <br><br>
+		Created by %s
+		`, MainRepository.GetIdExam(), MainRepository.GetIdQuestion(), GetCreator(),
+	)
+	return output
 }
 
 // Add functions
 
 // Add a Questions to the MainRepository Structure
-func AddQuestion(statement string, kind string, options string, answer string) {
+func AddQuestion(topic, statement string, kind string, options string, answer string, hashAES string) {
 	AddressAllowed()
-	MainRepository.AddQuestion(statement, kind, options, answer)
+	MainRepository.AddQuestion(topic, statement, kind, options, answer, hashAES)
 }
 
 // Add an Exam to the MainRepository Structure
-func AddExam(title string, questions string, description string, applicantsString string) {
+func AddExam(title, description, questions, applicantsString, hashAES string) {
 	AddressAllowed()
-	if len(title) == 0 {
-		panic(ErrEmptyTitle)
-	}
 	applicantsArray := strings.Split(applicantsString, ",")
 	id := MainRepository.GetIdExam()
-	MainRepository.AddExam(title, questions, description, applicantsArray)
+	MainRepository.AddExam(title, questions, description, applicantsArray, hashAES)
 	for _, appl := range applicantsArray {
-		SetApplicant(appl, id)
+		// Remember the ExamId will be increased in the AddExam part
+		SetApplicant(appl, id+1)
 	}
 }
 
-// Duplicates an exam based on a previous one
-func DuplicateExam(oId string) {
-	AddressAllowed()
-	oldExam := MainRepository.GetExamById(oId)
-	title := oldExam.GetTitle()
-	description := oldExam.GetDescription()
-
-	// Creating duplicate
-	MainRepository.AddExam(title, "", description, []string{})
-	newExamId := MainRepository.GetIdExam()
-	newExam := MainRepository.GetExamById(strconv.Itoa(newExamId))
-
-	// Optional parameters added
-	questions := oldExam.GetQuestions()
-	if len(questions) > 0 {
-		newExam.UpdateQuestions(questions)
-		for _, q := range questions {
-			MainRepository.AppendExamUsingQuestionId(strconv.Itoa(q), strconv.Itoa(newExamId))
-		}
+// Gets all the topics from the user
+func GetTopics() string {
+	topics := ""
+	MainRepository.QuestionsByTopics.Iterate("", "", func(key string, questions interface{}) bool {
+		topics += key + ","
+		return false
+	})
+	if len(topics) > 0 {
+		topics = topics[:len(topics)-1]
 	}
-	applicants := oldExam.GetApplicantsTree()
-	if applicants.Size() > 0 {
-		newExam.UpdateApplicants(applicants)
-	}
+	topics = "[" + topics + "]"
+	return topics
 }
 
-// Read all the exams and returns it as a string. It won't matter if an external
-// reads it because it will be hashed by web2 infrastructure.
-func ReadExams() string {
-	AddressAllowed()
-	// In case the address is allowed
-	str := ""
-	ids := MainRepository.GetIdExam()
-	for id := 1; id <= ids; id++ {
-		content := ReadOneExam(strconv.Itoa(id))
-		if content != ErrNoExistingId {
-			str += content
-		}
-	}
-	return str
-}
-
-// Reads the exam with the given id and returns it as a string.
+// Reads the exam with the given id and returns all the content as a string.
 // It won't matter if an external reads it because it will be hashed by
 // web2 infrastructure.
-func ReadOneExam(id string) string {
-	AddressAllowed()
+func ReadExam(id string) string {
 	var str string
 	e := MainRepository.GetExamById(id)
-	str += "## " + e.GetTitle() + "\n"
-
-	allQuestions := MainRepository.GetQuestions()
-	qs := e.GetQuestions()
-	for _, id := range qs {
-		str += ReadOneQuestion(strconv.Itoa(id))
-	}
-	return str
+	str += `"title":"` + e.GetTitle() + `",`
+	str += `"description":"` + e.GetDescription() + `",`
+	str += `"questions":"` + e.GetQuestions() + `",`
+	appl := e.GetApplicants()
+	applString := strings.Join(appl[:], `",`)
+	str += `"applicantString":"` + applString + `",`
+	str += `"hashAES":"` + e.GetHashAES() + `"`
+	return `{` + str + `}`
 }
 
 // Read all the questions and returns it as a string. It won't matter if an
 // external reads it because it will be hashed by web2 infrastructure.
-func ReadQuestions() string {
-	var str string
-	ids := MainRepository.GetIdQuestion()
-	for id := 1; id <= ids; id++ {
-		str += ReadOneQuestion(strconv.Itoa(id))
+func ReadTopic(topic string) []string {
+	questionsArray := []string{}
+	topicQuestionsInterface, ok := MainRepository.QuestionsByTopics.Get(topic)
+	if !ok {
+		panic(ErrNoTopic)
 	}
-	return str
-}
-
-// Reads the question with the given id and returns it as a string if the
-// caller is the creator. If the caller isn't the creator returns an empty
-// string.
-func ReadOneQuestion(id string) string {
-	AddressAllowed()
-	var str string
-	content := MainRepository.ReadQuestion(id)
-	if content != ErrNoExistingId {
-		str += content
-	}
-	return str
-}
-
-// Deletes the question with the given id if the caller is the creator and if:
-// 1. the question hasn't been used in any exam (If you delete it first in the
-// exam, you can remove it).
-// 2. the question was not used in previous exams.
-// If the caller isn't the creator, it panics.
-func DeleteQuestion(id string) {
-	AddressAllowed()
-	idInt, err := strconv.Atoi(id)
-	if err != nil {
-		panic(ErrIdNotAnInteger)
-	}
-	MainRepository.DeleteQuestion(idInt)
-}
-
-// Deletes the question with the given id if the caller is the creator and if:
-// 1. The exam hasn't started yet
-// 2. The exam doesn't have applicants
-// 3. The exam doesn't have questions
-func DeleteExam(id string) {
-	AddressAllowed()
-	idInt, err := strconv.Atoi(id)
-	if err != nil {
-		panic(ErrIdNotAnInteger)
-	}
-	MainRepository.DeleteExam(idInt)
+	topicQuestions := topicQuestionsInterface.(avl.Tree)
+	topicQuestions.Iterate("", "", func(key string, value interface{}) bool {
+		question := value.(shikenquestion.Question)
+		answer := question.GetAnswer()
+		kind := question.GetKind()
+		options := question.GetOptions()
+		questions := question.GetQuestions()
+		hashAES := question.GetHashAES()
+		content := ufmt.Sprintf("{'answer':%s,'kind':%s,'options':%s,'question':%s,'hashAES':%s}", answer, kind, options, questions, hashAES)
+		questionsArray = append(questionsArray, content)
+		return true
+	})
+	return questionsArray
 }
 
 // Establishes the exams the applicant can access
@@ -188,20 +122,15 @@ func SetApplicant(addr string, idInt int) {
 	AddressAllowed()
 	// Start of main set
 	id := strconv.Itoa(idInt)
-	if _, ok := Applicants.Get(addr); ok {
-		applicantExamsInterface, _ := Applicants.Get(addr)
+	if applicantExamsInterface, ok := Applicants.Get(addr); ok {
 		applicantExams := applicantExamsInterface.(avl.Tree)
 		applicantExams.Set(id, true)
+		Applicants.Set(addr, applicantExams)
 	} else {
 		applicantExams := avl.Tree{}
 		applicantExams.Set(id, true)
 		Applicants.Set(addr, applicantExams)
 	}
-}
-
-func GetExamsArrayGivenQuestion(id string) []string {
-	AddressAllowed()
-	return MainRepository.GetArrayExamsUsingThisQuestion(id)
 }
 
 // Blocker to restrict to creator
@@ -221,17 +150,31 @@ func GetCreator() string {
 
 // Returns the list of ids of the exams the applicant is going to do.
 // It doesn't show the exams the user has already made
-func GetMyPendingExams(caller string) string {
+func GetPendingExams(caller string) string {
 	var examsList string
 	examsInterface, ok := Applicants.Get(caller)
 	if !ok {
-		panic(ErrNoPendingExams)
+		return "[]"
 	} else {
 		exams := examsInterface.(avl.Tree)
 		exams.Iterate("", "", func(key string, value interface{}) bool {
-			examsList += key
+			examsList += key + ","
+			return false
 		})
-		return examsList
+		examsList = examsList[:len(examsList)-1]
+		return "[" + examsList + "]"
+	}
+}
+
+// Returns the number of exams the applicant is going to do.
+// It doesn't show the exams the user has already made
+func GetNumberPendingExams(caller string) string {
+	examsInterface, ok := Applicants.Get(caller)
+	if !ok {
+		return "0"
+	} else {
+		exams := examsInterface.(avl.Tree)
+		return ufmt.Sprintf("%d", exams.Size())
 	}
 }
 

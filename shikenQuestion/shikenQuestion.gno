@@ -1,24 +1,31 @@
 package shikenquestion
 
-import "std"
+import (
+	"std"
 
-// The Question structure must be not editable except if hasn't been used.
-// This is in order to protect the candidates that answer this question.
-// This way the examinator can't edit the question after has been used in an exam.
+	ufmt "gno.land/p/demo/ufmt"
 
+	avl "gno.land/p/demo/avl"
+)
+
+// Given the encryption state of the question once it reaches the
+// blockchain, there is no possibility to read the content without
+// the information. Because of this, there are several restrictions
+// that will be removed
 type Question struct {
-	answer   string   // Answer. It must be contained in the options.
+	answer   string   // Answer. It points the index of the option.
 	id       int      // identifier of this question. Not editable
 	kind     string   // type of questions as in multiple choice, true/false or open (0,1,2). Not editable.
 	options  []string // The encrypted answer(s), if question is multiple choice this will contain multiple options.
 	question string   // The statement of the question.
-	public   bool     // The question is public or not.
-	canRead  bool     // Allows the exam container to read the full information.
+	hashAES  string   // The statement of the question.
 }
+
+// This realm is intended to work purely with the website.
+// Otherwise expect errors and mistakes in the way it works.
 
 // Panics for generic cases
 const (
-	ErrQuestionTooShort = "question too short"
 	ErrKindOutOfRange   = "kind type must be 1,2 or 3"
 	ErrShortOptionsList = "options length must be greater or equal to 4"
 )
@@ -40,19 +47,17 @@ const (
 	ErrOpenQuestionAnswer  = "open question don't require answer"
 )
 
-// Creates a new question
-func NewQuestion(question string, kind string, id int, options []string, answer string) *Question {
-	// If the question is True-False the options are set to these options
-	if len(question) < 5 {
-		panic(ErrQuestionTooShort)
-	}
+// Creates a new question. Since basically no content can be verified, this
+// must only check if the kind matches with the given options
+func NewQuestion(question string, kind string, id int, options []string, answer string, hashAES string) *Question {
 	switch kind {
 	case "0":
 		verifyMultipleOptionQuestion(options, answer)
 	case "1":
 		options = []string{"True", "False", "Can't be determined", "No answer"}
-		verifyTrueFalseQuestion(options, answer)
 	case "2":
+		options = []string{}
+		answer = ""
 		verifyOpenEndedQuestion(options, answer)
 	default:
 		panic(ErrKindOutOfRange)
@@ -64,119 +69,62 @@ func NewQuestion(question string, kind string, id int, options []string, answer 
 		answer:   answer,
 		question: question,
 		options:  options,
+		hashAES:  hashAES,
 	}
 }
 
 // Verifies if the options in a multiple option Question
 // are valid and if the answer is contained in the array
-// of options
+// of options ("0")
 func verifyMultipleOptionQuestion(options []string, answer string) {
 	if len(options) < 4 {
 		panic(ErrShortOptionsList)
 	}
-	seen := make(map[string]bool)
-	containsAnswer := false
+	seen := avl.Tree{}
 	for _, opt := range options {
-		// the option isn't empty
-		if len(opt) == 0 {
-			panic(ErrEmptyOption)
-		}
 		// the option isn't repeated
-		if seen[opt] {
+		_, ok := seen.Get(opt)
+		if ok {
 			panic(ErrRepeatedOption)
 		}
-		// the answer is in the options
-		if opt == answer {
-			containsAnswer = true
-		}
-		seen[opt] = true
-	}
-	if !containsAnswer {
-		panic(ErrAnswerNotInOption)
-	}
-}
-
-// Verifies if the answer is True or False, so
-// the array of options contain the answer
-func verifyTrueFalseQuestion(options []string, answer string) {
-	containsAnswer := false
-	for _, v := range options {
-		if v == answer {
-			containsAnswer = true
-		}
-	}
-	if !containsAnswer {
-		panic(ErrAnswerNotInOption)
+		seen.Set(opt, true)
 	}
 }
 
 // Verifies the options and answer of an open
-// ended Question
+// ended Question ("2")
 func verifyOpenEndedQuestion(options []string, answer string) {
 	// must have
 	if len(options) != 0 {
-		panic(ErrOpenQuestionOptions)
+		text := ufmt.Sprintf("%s", options[0])
+		panic(text)
 	}
 	if len(answer) != 0 {
 		panic(ErrOpenQuestionAnswer)
 	}
 }
 
-func (s *Question) RemoveOption(option string) {
-	if s.GetKind() == "0" {
-		ans := s.GetAnswer()
-		if ans == option {
-			panic(ErrAnswerNotRemovable)
-		}
-		if len(s.GetOptions()) == 4 {
-			panic(ErrCantDeleteMoreOptions)
-		}
-		indexToDelete := -1
-		for i, v := range s.options {
-			if v == option {
-				indexToDelete = i
-			}
-		}
-		if indexToDelete == -1 {
-			panic(ErrNotExistingOption)
-		}
-		s.options = append(s.options[:indexToDelete], s.options[indexToDelete+1:]...)
-	} else {
-		panic(ErrQuestionTypeForbiddenAction)
-	}
-}
-
-func (s *Question) IsCorrect(answer string) bool {
-	return answer == s.GetAnswer()
-}
-
 // Set functions
 
+// Set the question again. Doesn't require any filtering since
+// it's made by the website, and the hash has a size of more than
+// 64 chars
 func (s *Question) SetQuestion(question string) {
-	if len(question) < 5 {
-		panic("the length of the question is very short")
-	} else {
-		s.question = question
-	}
+	s.question = question
 }
 
-func (s *Question) SetPublic() {
-	s.public = true
-}
-
+// Updates set of options if allowed. Otherwise panics.
+// In case you want to update the options from a question
+// that isn't allowed to edit the options, will panic too
 func (s *Question) SetOptions(options []string) {
 	if s.GetKind() != "0" {
 		panic(ErrQuestionTypeForbiddenAction)
 	}
-	answer := s.GetAnswer()
-	for _, opt := range options {
-		if answer == opt {
-			if len(options) >= 4 {
-				s.options = options
-			}
-		}
+	if len(options) >= 4 {
+		s.options = options
+	} else {
+		panic(ErrAnswerNotInOption)
 	}
-	panic(ErrAnswerNotInOption)
 }
 
 // Get functions
@@ -192,16 +140,16 @@ func (s *Question) GetAnswer() string {
 }
 
 // Get statement of question
-func (s *Question) GetQuestion() string {
+func (s *Question) GetQuestions() string {
 	return s.question
-}
-
-// Get if question is public
-func (s *Question) GetPublic() bool {
-	return s.public
 }
 
 // Get kind of question
 func (s *Question) GetKind() string {
 	return s.kind
+}
+
+// Get kind of question
+func (s *Question) GetHashAES() string {
+	return s.hashAES
 }
