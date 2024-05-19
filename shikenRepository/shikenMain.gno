@@ -24,7 +24,7 @@ const (
 // Main structure that stores relevant information
 var (
 	MainRepository Repository
-	Applicants     avl.Tree
+	Applicants     avl.Tree // Applicant -> {avl.Tree {id -> true}}
 	Creator        string
 )
 
@@ -181,11 +181,20 @@ func GetNumberPendingExams(caller string) string {
 // Makes the caller drop the exam if is registered in it
 func DropExam(id string) {
 	caller := std.GetOrigCaller().String()
+	// Removing the applicant from the applicants in the exam
 	exam := MainRepository.GetExamById(id)
 	applicantsInterface := exam.GetApplicantsTree()
 	applicants := applicantsInterface.(avl.Tree)
 	applicants.Remove(caller)
 	exam.UpdateApplicants(applicants)
+	// Removing the exam from the pending exams of the applicant
+	applicantInterface, ok := Applicants.Get(caller)
+	if !ok {
+		panic(ufmt.Sprintf("Applicant %s not in Exam %s", caller, id))
+	}
+	applicant := applicantInterface.(avl.Tree)
+	applicant.Remove(id)
+	Applicants.Set(caller, applicant)
 }
 
 // answers parameter has to be a string because can't be sent decrypted
