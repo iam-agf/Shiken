@@ -7,6 +7,7 @@ import (
 	"time"
 
 	avl "gno.land/p/demo/avl"
+	ufmt "gno.land/p/demo/ufmt"
 )
 
 type Exam struct {
@@ -21,7 +22,10 @@ type Exam struct {
 	hashAES           string    // Encryption key for this exam
 }
 
-const ErrAddressNotAllowed = "Address not allowed!"
+const (
+	ErrAddressNotAllowed = "Address not allowed!"
+	ErrNoCandidateRecord = "No candidate answers registered!"
+)
 
 func NewExam(title string, description string, questions string, applicants []string, id int, hashAES string) *Exam {
 	var applicantsTree avl.Tree
@@ -46,6 +50,7 @@ func NewExam(title string, description string, questions string, applicants []st
 // his answers if the exam is still in the application window
 func (e *Exam) AddApplicant(applicant string) bool {
 	e.applicants.Set(applicant, true)
+	// The line below is just to check if the applicant was successfully added
 	return e.VerifyApplicant(applicant)
 }
 
@@ -59,11 +64,23 @@ func (e *Exam) VerifyApplicant(applicant string) bool {
 	return true
 }
 
+func (e *Exam) EditExam(title, questions, description string, applicants []string) {
+	e.UpdateTitle(title)
+	e.UpdateDescription(description)
+	e.UpdateQuestions(questions)
+	newApplicants := avl.Tree{}
+	for _, appl := range applicants {
+		newApplicants.Set(appl, true)
+	}
+	e.UpdateApplicants(newApplicants)
+}
+
 // Returns the list of addresses allowed to apply to this Exam
 func (e *Exam) GetApplicants() []string {
 	var applicants []string
 	e.applicants.Iterate("", "", func(key string, value interface{}) bool {
 		applicants = append(applicants, key)
+		return false
 	})
 	return applicants
 }
@@ -136,4 +153,28 @@ func (e *Exam) UpdateEndTime(c time.Time) {
 
 func (e *Exam) SendAnswers(applicant string, answers avl.Tree) {
 	e.answersApplicants.Set(applicant, answers)
+}
+
+// Creator relevant functions
+
+func (e *Exam) CheckAllAnswers() string {
+	output := ""
+	e.answersApplicants.Iterate("", "", func(key string, value interface{}) bool {
+		answers := value.(string)
+		output += ufmt.Sprintf(`"%s":"%s",`, key, answers)
+		return false
+	})
+	output = "{" + output[:len(output)-1] + "}"
+	return output
+}
+
+func (e *Exam) CheckCandidateAnswers(applicant string) string {
+	output := ""
+	answersInterface, ok := e.answersApplicants.Get(applicant)
+	if !ok {
+		panic(ErrNoCandidateRecord)
+	}
+	answers := answersInterface.(string)
+	output = ufmt.Sprintf(`{"%s":%s}`, applicant, answers)
+	return output
 }
