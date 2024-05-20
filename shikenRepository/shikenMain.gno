@@ -121,14 +121,6 @@ func ReadTopic(topic string) []string {
 	return questionsArray
 }
 
-// Blocker to restrict to creator
-func AddressAllowed() {
-	caller := std.GetOrigCaller().String()
-	if caller != Creator {
-		panic(ErrAddressNotAllowed)
-	}
-}
-
 // Get functions
 
 // Returns the owner of the realm
@@ -180,6 +172,8 @@ func GetNumberPendingExams(caller string) string {
 	}
 }
 
+// Applicant Functions
+
 // Makes the caller drop the exam if is registered in it
 func DropExam(id string) {
 	caller := std.GetOrigCaller().String()
@@ -213,6 +207,14 @@ func SendAnswers(examId string, answers string) {
 	answersTree.Set(caller, answers)
 }
 
+// Blocker to restrict to creator
+func AddressAllowed() {
+	caller := std.GetOrigCaller().String()
+	if caller != Creator {
+		panic(ErrAddressNotAllowed)
+	}
+}
+
 func DeleteExam(id string) {
 	caller := std.GetOrigCaller().String()
 	if caller != Creator {
@@ -237,4 +239,10 @@ func DeleteExam(id string) {
 			Applicants.Set(appl, examsByAppl)
 		}
 	}
+}
+
+func EditExam(id, title, questions, description, applicants string) {
+	AddressAllowed()
+	applicantsArr := strings.Split(applicants, ",")
+	MainRepository.EditExam(id, title, questions, description, applicantsArr)
 }

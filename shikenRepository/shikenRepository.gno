@@ -38,13 +38,9 @@ const (
 // Add functions
 
 // Adds your Question to the Repository in the topic you register.
-// If topic is empty, it will be sent to general
+// All topics will be encrypted, so there is no way the applicants
+// can read the topic unless they decrypt it
 func (r *Repository) AddQuestion(topic string, statement string, kind string, optionsArray string, answer string, hashAES string) {
-	if topic == "" {
-		topic = "general"
-	}
-	// This is to avoid several topics with typos (It's tough to assume the user knows how to write)
-	topic = strings.ToLower(topic)
 	options := strings.Split(optionsArray, ",")
 	r.IncreaseIdQuestion()
 	qId := r.GetIdQuestion()
@@ -63,7 +59,7 @@ func (r *Repository) AddQuestion(topic string, statement string, kind string, op
 }
 
 // Add Exam to the Repository
-func (r *Repository) AddExam(title string, questions string, description string, applicants []string, hashAES string) {
+func (r *Repository) AddExam(title, questions, description string, applicants []string, hashAES string) {
 	r.IncreaseIdExam()
 	idExam := r.GetIdExam()
 	idExamString := strconv.Itoa(idExam)
@@ -71,6 +67,20 @@ func (r *Repository) AddExam(title string, questions string, description string,
 	// The only non encrypted data is the applicants entry
 	e := shikenexam.NewExam(title, description, questions, applicants, idExam, hashAES)
 	r.Exams.Set(idExamString, e)
+	// Registers in each question the exam that will use it
+}
+
+// Edit Exam to the Repository
+func (r *Repository) EditExam(examId, title, questions, description string, applicants []string) {
+	// There is no chance to review any content in the exam, so everything enters as how is received
+	// The only non encrypted data is the applicants entry
+	eInterface, ok := r.Exams.Get(examId)
+	if !ok {
+		panic(ErrNoExistingExam)
+	}
+	e := eInterface.(*shikenexam.Exam)
+	e.EditExam(title, description, questions, applicants)
+	r.Exams.Set(examId, e)
 	// Registers in each question the exam that will use it
 }
 

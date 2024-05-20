@@ -64,6 +64,17 @@ func (e *Exam) VerifyApplicant(applicant string) bool {
 	return true
 }
 
+func (e *Exam) EditExam(title, questions, description string, applicants []string) {
+	e.UpdateTitle(title)
+	e.UpdateDescription(description)
+	e.UpdateQuestions(questions)
+	newApplicants := avl.Tree{}
+	for _, appl := range applicants {
+		newApplicants.Set(appl, true)
+	}
+	e.UpdateApplicants(newApplicants)
+}
+
 // Returns the list of addresses allowed to apply to this Exam
 func (e *Exam) GetApplicants() []string {
 	var applicants []string
