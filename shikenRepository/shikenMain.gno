@@ -60,23 +60,27 @@ func AddExam(title, description, questions, applicantsString, hashAES string) {
 	MainRepository.AddExam(title, questions, description, applicantsArray, hashAES)
 	for _, appl := range applicantsArray {
 		// Remember the ExamId will be increased in the AddExam part
-		SetApplicant(appl, id+1)
+		AddApplicant(appl, id+1)
 	}
 }
 
-// Gets all the topics from the user
-func GetTopics() string {
-	topics := ""
-	MainRepository.QuestionsByTopics.Iterate("", "", func(key string, questions interface{}) bool {
-		topics += key + ","
-		return false
-	})
-	if len(topics) > 0 {
-		topics = topics[:len(topics)-1]
+// Establishes the exams the applicant can access
+func AddApplicant(addr string, idInt int) {
+	AddressAllowed()
+	// Start of main set
+	id := strconv.Itoa(idInt)
+	if applicantExamsInterface, ok := Applicants.Get(addr); ok {
+		applicantExams := applicantExamsInterface.(avl.Tree)
+		applicantExams.Set(id, true)
+		Applicants.Set(addr, applicantExams)
+	} else {
+		applicantExams := avl.Tree{}
+		applicantExams.Set(id, true)
+		Applicants.Set(addr, applicantExams)
 	}
-	topics = "[" + topics + "]"
-	return topics
 }
+
+// Read functions
 
 // Reads the exam with the given id and returns all the content as a string.
 // It won't matter if an external reads it because it will be hashed by
@@ -117,22 +121,6 @@ func ReadTopic(topic string) []string {
 	return questionsArray
 }
 
-// Establishes the exams the applicant can access
-func SetApplicant(addr string, idInt int) {
-	AddressAllowed()
-	// Start of main set
-	id := strconv.Itoa(idInt)
-	if applicantExamsInterface, ok := Applicants.Get(addr); ok {
-		applicantExams := applicantExamsInterface.(avl.Tree)
-		applicantExams.Set(id, true)
-		Applicants.Set(addr, applicantExams)
-	} else {
-		applicantExams := avl.Tree{}
-		applicantExams.Set(id, true)
-		Applicants.Set(addr, applicantExams)
-	}
-}
-
 // Blocker to restrict to creator
 func AddressAllowed() {
 	caller := std.GetOrigCaller().String()
@@ -141,12 +129,26 @@ func AddressAllowed() {
 	}
 }
 
+// Get functions
+
 // Returns the owner of the realm
 func GetCreator() string {
 	return Creator
 }
 
-// All public Functions
+// Gets all the topics from the user
+func GetTopics() string {
+	topics := ""
+	MainRepository.QuestionsByTopics.Iterate("", "", func(key string, questions interface{}) bool {
+		topics += key + ","
+		return false
+	})
+	if len(topics) > 0 {
+		topics = topics[:len(topics)-1]
+	}
+	topics = "[" + topics + "]"
+	return topics
+}
 
 // Returns the list of ids of the exams the applicant is going to do.
 // It doesn't show the exams the user has already made
@@ -209,4 +211,30 @@ func SendAnswers(examId string, answers string) {
 	answersInterface := exam.GetAnswerApplicantsTree()
 	answersTree := answersInterface.(avl.Tree)
 	answersTree.Set(caller, answers)
+}
+
+func DeleteExam(id string) {
+	caller := std.GetOrigCaller().String()
+	if caller != Creator {
+		panic(ErrAddressNotAllowed)
+	}
+
+	// If the Id doesn't exist, will panic
+	exam := MainRepository.GetExamById(id)
+
+	if canDelete := MainRepository.CanDeleteExam(id); canDelete {
+		applicants := exam.GetApplicants()
+		// Removing exam from the applicants list of pending exams first
+		for _, appl := range applicants {
+			examsByApplInterface, ok := Applicants.Get(appl)
+			if !ok {
+				// This should never happen since each time there's an edit it's made in both sides
+				// appl => exam and exam => appl
+				panic(ErrUnexpectedError)
+			}
+			examsByAppl := examsByApplInterface.(avl.Tree)
+			examsByAppl.Remove(id)
+			Applicants.Set(appl, examsByAppl)
+		}
+	}
 }

@@ -112,35 +112,25 @@ func (r *Repository) CanDeleteExam(id string) bool {
 	examInterface, dontExist := r.Exams.Get(id)
 	if !dontExist {
 		return true
-	} else {
-		exam := examInterface.(*shikenexam.Exam)
-
-		appls := exam.GetApplicantsTree()
-		start := exam.GetStartTime()
-		end := exam.GetEndTime()
-
-		// conditions
-		noApplicants := appls.Size() == 0
-		noTime := start == end
-		examQuestionsInterface, ok := r.ExamQuestions.Get(id)
-		if !ok {
-			panic(ErrUnexpectedError)
-		}
-		examQuestions := examQuestionsInterface.(avl.Tree)
-		noQuestions := examQuestions.Size() == 0
-
-		// filters
-		if noApplicants {
-			return true
-		}
-		if noQuestions {
-			return true
-		}
-		if noTime {
-			return true
-		}
-		return false
 	}
+	exam := examInterface.(*shikenexam.Exam)
+
+	appls := exam.GetApplicantsTree()
+	start := exam.GetStartTime()
+	end := exam.GetEndTime()
+
+	// conditions
+	if appls.Size() == 0 {
+		return true
+	}
+	if start == end {
+		return true
+	}
+	_, noQuestions := r.ExamQuestions.Get(id)
+	if !noQuestions {
+		return true
+	}
+	return false
 }
 
 // ## Update Functions
