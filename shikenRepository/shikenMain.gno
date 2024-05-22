@@ -47,7 +47,7 @@ func Render(path string) string {
 // Add functions
 
 // Add a Questions to the MainRepository Structure
-func AddQuestion(topic, statement string, kind string, options string, answer string, hashAES string) {
+func AddQuestion(topic, statement, kind, options, answer, hashAES string) {
 	AddressAllowed()
 	MainRepository.AddQuestion(topic, statement, kind, options, answer, hashAES)
 }

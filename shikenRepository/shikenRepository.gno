@@ -40,7 +40,7 @@ const (
 // Adds your Question to the Repository in the topic you register.
 // All topics will be encrypted, so there is no way the applicants
 // can read the topic unless they decrypt it
-func (r *Repository) AddQuestion(topic string, statement string, kind string, optionsArray string, answer string, hashAES string) {
+func (r *Repository) AddQuestion(topic, statement, kind, optionsArray, answer, hashAES string) {
 	options := strings.Split(optionsArray, ",")
 	r.IncreaseIdQuestion()
 	qId := r.GetIdQuestion()
