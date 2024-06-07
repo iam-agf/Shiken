@@ -1,7 +1,6 @@
 package shikenrepository
 
 import (
-	std "std"
 	"strconv"
 	"strings"
 

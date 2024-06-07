@@ -7,7 +7,6 @@ import (
 
 	avl "gno.land/p/demo/avl"
 	ufmt "gno.land/p/demo/ufmt"
-	shikenexam "gno.land/p/dev/shikenexam"
 	shikenquestion "gno.land/p/dev/shikenquestion"
 )
 
@@ -179,8 +178,7 @@ func DropExam(id string) {
 	caller := std.GetOrigCaller().String()
 	// Removing the applicant from the applicants in the exam
 	exam := MainRepository.GetExamById(id)
-	applicantsInterface := exam.GetApplicantsTree()
-	applicants := applicantsInterface.(avl.Tree)
+	applicants := exam.GetApplicantsTree()
 	applicants.Remove(caller)
 	exam.UpdateApplicants(applicants)
 	// Removing the exam from the pending exams of the applicant
@@ -202,8 +200,7 @@ func SendAnswers(examId string, answers string) {
 	if !valid {
 		panic(ErrAddressNotAllowed)
 	}
-	answersInterface := exam.GetAnswerApplicantsTree()
-	answersTree := answersInterface.(avl.Tree)
+	answersTree := exam.GetAnswerApplicantsTree()
 	answersTree.Set(caller, answers)
 }
 

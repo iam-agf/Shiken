@@ -1,9 +1,6 @@
 package shikenexam
 
 import (
-	"std"
-	"strconv"
-	"strings"
 	"time"
 
 	avl "gno.land/p/demo/avl"
